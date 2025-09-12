@@ -1,0 +1,66 @@
+[
+  {
+    "text": "I want to book a table for dinner",
+    "intent": "book_table"
+  },
+  {
+    "text": "Can I reserve a table for 4 people?",
+    "intent": "book_table"
+  },
+  {
+    "text": "I need to book a flight to New York",
+    "intent": "book_flight"
+  },
+  {
+    "text": "Book me a flight for tomorrow",
+    "intent": "book_flight"
+  },
+  {
+    "text": "I want to book a hotel room",
+    "intent": "book_hotel"
+  },
+  {
+    "text": "Can I reserve a hotel for the weekend?",
+    "intent": "book_hotel"
+  },
+  {
+    "text": "I need a taxi to the airport",
+    "intent": "book_taxi"
+  },
+  {
+    "text": "Call me a cab please",
+    "intent": "book_taxi"
+  },
+  {
+    "text": "What's the weather like today?",
+    "intent": "check_weather"
+  },
+  {
+    "text": "Will it rain tomorrow?",
+    "intent": "check_weather"
+  },
+  {
+    "text": "I want to eat biryani",
+    "intent": "food_order"
+  },
+  {
+    "text": "Can I order some pizza?",
+    "intent": "food_order"
+  },
+  {
+    "text": "What time do you close?",
+    "intent": "business_hours"
+  },
+  {
+    "text": "Are you open on weekends?",
+    "intent": "business_hours"
+  },
+  {
+    "text": "I have a complaint about my order",
+    "intent": "complaint"
+  },
+  {
+    "text": "I'm not satisfied with the service",
+    "intent": "complaint"
+  }
+]

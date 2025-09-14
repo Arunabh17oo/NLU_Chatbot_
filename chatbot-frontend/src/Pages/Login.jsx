@@ -11,16 +11,18 @@ function Login({ goToSignup, onLoginSuccess }) {
   const typedRef = useRef(null)
 
   useEffect(() => {
-    const typed = new Typed(typedRef.current, {
-      strings: ['Welcome to MyChat!!'],
-      typeSpeed: 100,
-      backSpeed: 50,
-      loop: false,
-      showCursor: false,
-    })
+    if (typedRef.current) {
+      const typed = new Typed(typedRef.current, {
+        strings: ['Welcome to MyChat!!'],
+        typeSpeed: 100,
+        backSpeed: 50,
+        loop: false,
+        showCursor: false,
+      })
 
-    return () => {
-      typed.destroy()
+      return () => {
+        typed.destroy()
+      }
     }
   }, [])
 

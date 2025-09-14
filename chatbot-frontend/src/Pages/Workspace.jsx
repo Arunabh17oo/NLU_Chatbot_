@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import './Workspace.css'
-import { FiPlus, FiFolder, FiUpload, FiCpu, FiCheck } from 'react-icons/fi'
+import { FiPlus, FiFolder, FiUpload, FiCpu, FiCheck, FiBarChart2, FiGitBranch } from 'react-icons/fi'
+import EvaluationDashboard from './EvaluationDashboard'
+import ModelVersioningDashboard from './ModelVersioningDashboard'
 
 function parseCsv(text) {
   const lines = text.split(/\r?\n/).filter(Boolean)
@@ -68,6 +70,9 @@ export default function Workspace({ goToLogin }) {
   const [suggested, setSuggested] = useState([])
   const [predictionResult, setPredictionResult] = useState(null)
   const [isPredicting, setIsPredicting] = useState(false)
+
+  // Dashboard tabs
+  const [activeTab, setActiveTab] = useState('training')
 
   useEffect(() => {
     fetch('/data/utterances.json')
@@ -264,7 +269,32 @@ export default function Workspace({ goToLogin }) {
         </div>
 
         <div className="ws-right">
-          <div className="ws-section-title"><FiUpload /> Dataset Upload & Training</div>
+          {/* Tab Navigation */}
+          <div className="ws-tabs">
+            <button 
+              className={`ws-tab ${activeTab === 'training' ? 'active' : ''}`}
+              onClick={() => setActiveTab('training')}
+            >
+              <FiUpload /> Training
+            </button>
+            <button 
+              className={`ws-tab ${activeTab === 'evaluation' ? 'active' : ''}`}
+              onClick={() => setActiveTab('evaluation')}
+            >
+              <FiBarChart2 /> Evaluation
+            </button>
+            <button 
+              className={`ws-tab ${activeTab === 'versioning' ? 'active' : ''}`}
+              onClick={() => setActiveTab('versioning')}
+            >
+              <FiGitBranch /> Versioning
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'training' && (
+            <>
+              <div className="ws-section-title"><FiUpload /> Dataset Upload & Training</div>
           <div className="ws-upload">
             <input type="file" accept=".json" onChange={onSelectFile} />
             {file && <div className="ws-file">Selected: {file.name}</div>}
@@ -346,6 +376,22 @@ export default function Workspace({ goToLogin }) {
               )}
             </div>
           </div>
+            </>
+          )}
+
+          {activeTab === 'evaluation' && (
+            <EvaluationDashboard 
+              selectedWorkspace={selectedWorkspace}
+              modelInfo={modelInfo}
+            />
+          )}
+
+          {activeTab === 'versioning' && (
+            <ModelVersioningDashboard 
+              selectedWorkspace={selectedWorkspace}
+              modelInfo={modelInfo}
+            />
+          )}
         </div>
       </div>
     </div>

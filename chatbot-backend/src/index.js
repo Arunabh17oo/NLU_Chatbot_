@@ -7,6 +7,8 @@ import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import trainingRoutes from './routes/training.js';
+import evaluationRoutes from './routes/evaluation.js';
+import modelVersioningRoutes from './routes/modelVersioning.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +30,8 @@ app.use(morgan('dev'));
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/training', trainingRoutes);
+app.use('/api/evaluation', evaluationRoutes);
+app.use('/api/model-versioning', modelVersioningRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));

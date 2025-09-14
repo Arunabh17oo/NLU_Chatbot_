@@ -1,15 +1,30 @@
 # NLU Chatbot with HuggingFace Integration
 
-A full-stack chatbot application with AI-powered intent recognition using HuggingFace models. Users can upload JSON training data, convert it to YAML format, train models, and get intelligent intent predictions.
+A comprehensive full-stack chatbot application with AI-powered intent recognition using HuggingFace models. Features advanced model evaluation, versioning, and comparison capabilities for production-ready AI model management.
 
 ## 🚀 Features
 
+### Core Functionality
 - **User Authentication**: Secure login/signup with JWT tokens
 - **Workspace Management**: Create and manage multiple workspaces
 - **JSON to YAML Conversion**: Automatic conversion of training data
 - **HuggingFace Integration**: Train models and predict intents
 - **Real-time Predictions**: Get intent suggestions with confidence scores
+
+### Advanced AI Features (Milestone 3 - COMPLETED ✅)
+- **Model Evaluation**: Comprehensive performance metrics (accuracy, F1 score, precision, recall)
+- **Visual Metrics Dashboard**: Interactive confusion matrix and performance charts
+- **Holdout Evaluation**: Automatic test set evaluation with configurable ratios
+- **Model Versioning**: Track and manage different model versions
+- **Model Comparison**: Compare multiple model versions side-by-side
+- **Export Functionality**: Export trained models, predictions, and evaluation results
+- **Performance Analytics**: Detailed statistics and trend analysis
+
+### User Interface
 - **Modern UI**: Beautiful, responsive interface with React
+- **Tabbed Interface**: Organized workflow with Training, Evaluation, and Versioning tabs
+- **Interactive Dashboards**: Real-time metrics visualization
+- **Mobile Responsive**: Optimized for all device sizes
 
 ## 📋 Prerequisites
 
@@ -183,6 +198,24 @@ NLU_Chatbot/
 
 ### Chat
 - `POST /api/chat/ask` - Chat with bot (protected)
+
+### Evaluation (NEW - Milestone 3)
+- `POST /api/evaluation/evaluate` - Evaluate model on test data
+- `POST /api/evaluation/evaluate-holdout` - Holdout evaluation
+- `GET /api/evaluation/results/:evaluationId` - Get evaluation results
+- `GET /api/evaluation/workspace/:workspaceId` - Get workspace evaluations
+- `POST /api/evaluation/compare` - Compare evaluations
+- `GET /api/evaluation/export/:evaluationId` - Export evaluation
+
+### Model Versioning (NEW - Milestone 3)
+- `GET /api/model-versioning/versions/:workspaceId` - Get model versions
+- `GET /api/model-versioning/active/:workspaceId` - Get active version
+- `POST /api/model-versioning/create` - Create new version
+- `PUT /api/model-versioning/version/:versionId` - Update version
+- `POST /api/model-versioning/compare` - Compare versions
+- `DELETE /api/model-versioning/version/:versionId` - Delete version
+- `GET /api/model-versioning/export/:versionId` - Export version
+- `GET /api/model-versioning/statistics` - Get versioning statistics
 
 ## 📝 Sample Training Data
 

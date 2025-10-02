@@ -4,11 +4,12 @@ import axios from 'axios';
 import Typed from 'typed.js'
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi'
 
-function Signup({ goToLogin }) {
+function Signup({ goToLogin, onSignupSuccess }) {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const typedRef = useRef(null)
 
   useEffect(() => {
@@ -27,6 +28,8 @@ function Signup({ goToLogin }) {
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return
+    setIsSubmitting(true)
     try {
       const res = await axios.post('http://localhost:3001/api/auth/register', {
         username: username,
@@ -34,7 +37,16 @@ function Signup({ goToLogin }) {
         password: password,
       })
       if (res.status === 201) {
+        const token = res?.data?.token
+        if (token) {
+          localStorage.setItem('auth_token', token)
+        }
         alert('Signup successful')
+        if (typeof onSignupSuccess === 'function') {
+          onSignupSuccess()
+        } else if (typeof goToLogin === 'function') {
+          goToLogin()
+        }
       }
     } catch (err) {
       const status = err?.response?.status
@@ -46,6 +58,8 @@ function Signup({ goToLogin }) {
       } else {
         alert('Signup failed. Please try again later.')
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -98,7 +112,7 @@ function Signup({ goToLogin }) {
             {showPassword ? <FiEyeOff /> : <FiEye />}
           </button>
         </div>
-        <button type="submit" onClick={handleSignup}>Sign Up</button>
+        <button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Signing up...' : 'Sign Up'}</button>
       </form>
       <p>
         Already have an account? <span onClick={goToLogin}>Login</span>

@@ -13,7 +13,7 @@ function App() {
         <Login goToSignup={() => setPage('signup')} onLoginSuccess={() => setPage('workspace')} />
       )}
       {page === 'signup' && (
-        <Signup goToLogin={() => setPage('login')} />
+        <Signup goToLogin={() => setPage('login')} onSignupSuccess={() => setPage('workspace')} />
       )}
       {page === 'workspace' && (
         <Workspace goToLogin={() => setPage('login')} />

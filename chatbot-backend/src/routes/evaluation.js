@@ -118,28 +118,29 @@ router.post('/evaluate-holdout', auth, async (req, res) => {
   try {
     const { workspaceId, modelId, holdoutRatio = 0.2 } = req.body;
     
-    if (!workspaceId || !modelId) {
-      return res.status(400).json({ message: 'workspaceId and modelId are required' });
+    if (!workspaceId) {
+      return res.status(400).json({ message: 'workspaceId is required' });
     }
 
-    // Get model training data (this would need to be stored in the model versioning service)
-    const modelVersion = modelVersioningService.getModelVersion(modelId);
-    if (!modelVersion) {
-      return res.status(404).json({ message: 'Model not found' });
+    // Get the trained model info for this workspace (source of training data)
+    const huggingfaceService = (await import('../services/huggingfaceService.js')).default;
+    const modelInfo = huggingfaceService.getModelInfo(workspaceId);
+    if (!modelInfo) {
+      return res.status(404).json({ message: 'No trained model found for this workspace' });
     }
 
-    // Create holdout test set from training data
-    const trainingData = modelVersion.modelData.trainingData;
-    const shuffledData = [...trainingData].sort(() => Math.random() - 0.5);
-    const holdoutSize = Math.floor(trainingData.length * holdoutRatio);
-    const holdoutData = shuffledData.slice(0, holdoutSize);
-
-    if (holdoutData.length === 0) {
+    // Use the model's training data to create a holdout set
+    const trainingData = modelInfo.trainingData || [];
+    if (!Array.isArray(trainingData) || trainingData.length < 2) {
       return res.status(400).json({ message: 'Insufficient training data for holdout evaluation' });
     }
 
+    const shuffledData = [...trainingData].sort(() => Math.random() - 0.5);
+    const holdoutSize = Math.max(1, Math.floor(trainingData.length * Number(holdoutRatio)));
+    const holdoutData = shuffledData.slice(0, holdoutSize);
+
     // Evaluate on holdout data
-    const evaluationResult = await evaluationService.evaluateModel(holdoutData, workspaceId, modelId);
+    const evaluationResult = await evaluationService.evaluateModel(holdoutData, workspaceId, modelInfo.id);
 
     res.status(200).json({
       message: 'Holdout evaluation completed successfully',

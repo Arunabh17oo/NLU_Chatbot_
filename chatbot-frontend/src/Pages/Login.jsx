@@ -8,6 +8,7 @@ function Login({ goToSignup, onLoginSuccess }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const typedRef = useRef(null)
 
   useEffect(() => {
@@ -28,6 +29,8 @@ function Login({ goToSignup, onLoginSuccess }) {
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    if (isSubmitting) return
+    setIsSubmitting(true)
     try {
       const res = await axios.post('http://localhost:3001/api/auth/login', {
         email: email,
@@ -49,6 +52,8 @@ function Login({ goToSignup, onLoginSuccess }) {
       } else {
         alert('Login failed. Please try again later.')
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -91,7 +96,7 @@ function Login({ goToSignup, onLoginSuccess }) {
             {showPassword ? <FiEyeOff /> : <FiEye />}
           </button>
         </div>
-        <button type="submit" onClick={handleLogin}>Login</button>
+        <button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Logging in...' : 'Login'}</button>
       </form>
       <p>
         Don't have an account? <span onClick={goToSignup}>Sign up</span>

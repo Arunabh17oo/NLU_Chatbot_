@@ -27,11 +27,13 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
     tags: []
   });
   const [statistics, setStatistics] = useState(null);
+  const [serverModelId, setServerModelId] = useState(null);
 
   useEffect(() => {
     if (selectedWorkspace) {
       fetchVersions();
       fetchStatistics();
+      fetchServerModelId();
     }
   }, [selectedWorkspace]);
 
@@ -44,9 +46,10 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
-      setVersions(response.data.versions);
+      setVersions(response.data?.versions || []);
     } catch (error) {
       console.error('Failed to fetch versions:', error);
+      setVersions([]);
     }
   };
 
@@ -65,8 +68,25 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
     }
   };
 
+  // If user refreshed after training, modelInfo prop may be null.
+  // Try to fetch model info from backend to enable version creation.
+  const fetchServerModelId = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.get(
+        `http://localhost:3001/api/training/model-info/${selectedWorkspace.id}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const mid = response?.data?.model?.id;
+      if (mid) setServerModelId(mid);
+    } catch (error) {
+      // Swallow: not trained yet, keep button disabled
+    }
+  };
+
   const createVersion = async () => {
-    if (!selectedWorkspace || !modelInfo) {
+    const modelIdToUse = modelInfo?.modelId || serverModelId;
+    if (!selectedWorkspace || !modelIdToUse) {
       alert('Please select workspace and ensure model is trained');
       return;
     }
@@ -79,7 +99,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
         'http://localhost:3001/api/model-versioning/create',
         {
           workspaceId: selectedWorkspace.id,
-          modelId: modelInfo.modelId,
+          modelId: modelIdToUse,
           description: newVersionData.description || `Model version ${versions.length + 1}`,
           tags: newVersionData.tags.length > 0 ? newVersionData.tags : ['manual']
         },
@@ -225,6 +245,18 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
     return status === 'active' ? '#10b981' : '#6b7280';
   };
 
+  // Safely read evaluation metrics regardless of backend shape
+  const getEvalMetric = (evaluationResults, key) => {
+    if (!evaluationResults) return null;
+    if (evaluationResults.metrics && typeof evaluationResults.metrics[key] === 'number') {
+      return evaluationResults.metrics[key];
+    }
+    if (typeof evaluationResults[key] === 'number') {
+      return evaluationResults[key];
+    }
+    return null;
+  };
+
   return (
     <div className="model-versioning-dashboard">
       <div className="dashboard-header">
@@ -242,28 +274,28 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
         <div className="dashboard-content">
           {/* Statistics */}
           {statistics && (
-            <div className="statistics-section">
+              <div className="statistics-section">
               <h3><FiBarChart2 /> Version Statistics</h3>
               <div className="stats-grid">
                 <div className="stat-card">
                   <div className="stat-label">Total Versions</div>
-                  <div className="stat-value">{statistics.totalVersions}</div>
+                    <div className="stat-value">{Number(statistics?.totalVersions ?? 0)}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Active Versions</div>
-                  <div className="stat-value">{statistics.activeVersions}</div>
+                    <div className="stat-value">{Number(statistics?.activeVersions ?? 0)}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Inactive Versions</div>
-                  <div className="stat-value">{statistics.inactiveVersions}</div>
+                    <div className="stat-value">{Number(statistics?.inactiveVersions ?? 0)}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Avg Intents</div>
-                  <div className="stat-value">{statistics.averageIntents.toFixed(1)}</div>
+                    <div className="stat-value">{Number.isFinite(statistics?.averageIntents) ? statistics.averageIntents.toFixed(1) : '0.0'}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Avg Training Examples</div>
-                  <div className="stat-value">{statistics.averageTrainingExamples.toFixed(0)}</div>
+                    <div className="stat-value">{Number.isFinite(statistics?.averageTrainingExamples) ? statistics.averageTrainingExamples.toFixed(0) : '0'}</div>
                 </div>
               </div>
             </div>
@@ -276,20 +308,20 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
               <button
                 className="create-btn"
                 onClick={() => setShowCreateForm(!showCreateForm)}
-                disabled={!modelInfo}
+                disabled={!modelInfo && !serverModelId}
               >
                 {showCreateForm ? 'Cancel' : 'Create Version'}
               </button>
             </div>
 
-            {!modelInfo && (
+            {!modelInfo && !serverModelId && (
               <div className="no-model-warning">
                 <FiXCircle />
                 <span>Please train a model first before creating versions</span>
               </div>
             )}
 
-            {showCreateForm && modelInfo && (
+            {showCreateForm && (modelInfo || serverModelId) && (
               <div className="create-form">
                 <div className="form-group">
                   <label>Description</label>
@@ -368,7 +400,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
                             <FiClock />
                             {formatDate(version.createdAt)}
                           </span>
-                          {version.metadata.tags && version.metadata.tags.length > 0 && (
+                          {version?.metadata?.tags && version.metadata.tags.length > 0 && (
                             <div className="version-tags">
                               {version.metadata.tags.map((tag, tagIndex) => (
                                 <span key={tagIndex} className="tag">
@@ -408,7 +440,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
 
                     <div className="version-details">
                       <div className="version-description">
-                        <strong>Description:</strong> {version.metadata.description}
+                        <strong>Description:</strong> {version?.metadata?.description || '—'}
                       </div>
                       <div className="version-metrics">
                         <div className="metric">
@@ -419,14 +451,15 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
                           <span className="metric-label">Training Examples:</span>
                           <span className="metric-value">{version.trainingExamples}</span>
                         </div>
-                        {version.evaluationResults && (
-                          <div className="metric">
-                            <span className="metric-label">Accuracy:</span>
-                            <span className="metric-value">
-                              {(version.evaluationResults.metrics.accuracy * 100).toFixed(2)}%
-                            </span>
-                          </div>
-                        )}
+                        {(() => {
+                          const acc = getEvalMetric(version.evaluationResults, 'accuracy');
+                          return acc != null ? (
+                            <div className="metric">
+                              <span className="metric-label">Accuracy:</span>
+                              <span className="metric-value">{(acc * 100).toFixed(2)}%</span>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   </div>

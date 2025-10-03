@@ -6,6 +6,7 @@ A comprehensive full-stack chatbot application with AI-powered intent recognitio
 
 ### Core Functionality
 - **User Authentication**: Secure login/signup with JWT tokens
+- **Role-Based Access Control**: Admin and user roles with approval workflow
 - **Workspace Management**: Create and manage multiple workspaces
 - **JSON to YAML Conversion**: Automatic conversion of training data
 - **HuggingFace Integration**: Train models and predict intents
@@ -19,6 +20,15 @@ A comprehensive full-stack chatbot application with AI-powered intent recognitio
 - **Model Comparison**: Compare multiple model versions side-by-side
 - **Export Functionality**: Export trained models, predictions, and evaluation results
 - **Performance Analytics**: Detailed statistics and trend analysis
+
+### Advanced Enterprise Features (NEW - Milestone 4 - COMPLETED ✅)
+- **Admin Panel**: Comprehensive admin dashboard for user, dataset, and project management
+- **User Approval System**: Admin approval required for new user registrations
+- **Feedback Module**: User correction system with feedback tracking and review workflow
+- **Active Learning Dashboard**: Uncertain sample management with annotation and retraining
+- **Role-Based Security**: Separate admin and user interfaces with proper access control
+- **Dataset Management**: Advanced dataset organization and management
+- **Project Management**: Project-based organization with collaboration features
 
 ### User Interface
 - **Modern UI**: Beautiful, responsive interface with React
@@ -92,6 +102,17 @@ cd ../chatbot-backend
 mkdir uploads
 ```
 
+### Step 5: Create Admin User
+```bash
+# Set admin credentials in .env (optional)
+echo "ADMIN_EMAIL=admin@chatbot.com" >> .env
+echo "ADMIN_PASSWORD=admin123" >> .env
+echo "ADMIN_USERNAME=admin" >> .env
+
+# Create the admin user
+npm run create-admin
+```
+
 ## 🚀 Running the Application
 
 ### Terminal 1: Start Backend Server
@@ -146,6 +167,24 @@ The frontend will start on `http://localhost:5173`
 - Type text in the "AI Intent Prediction" textarea
 - Click "Predict Intent"
 - View the predicted intent with confidence score
+
+### 6. **Admin Panel (Admin Users Only)**
+- Login with admin credentials
+- Access the Admin Panel from the workspace
+- Manage users, datasets, and projects
+- Approve/reject new user registrations
+- Monitor system statistics
+
+### 7. **Feedback System**
+- Submit corrections for incorrect predictions
+- View your feedback history and status
+- Track which corrections have been applied
+
+### 8. **Active Learning**
+- Review uncertain samples that need annotation
+- Annotate samples with correct intents
+- Batch process multiple samples
+- Monitor retraining progress
 
 ## 📁 Project Structure
 
@@ -216,6 +255,32 @@ NLU_Chatbot/
 - `DELETE /api/model-versioning/version/:versionId` - Delete version
 - `GET /api/model-versioning/export/:versionId` - Export version
 - `GET /api/model-versioning/statistics` - Get versioning statistics
+
+### Admin Management (NEW - Milestone 4)
+- `GET /api/auth/users` - Get all users (admin only)
+- `PUT /api/auth/users/:userId/approve` - Approve/reject user (admin only)
+- `PUT /api/auth/users/:userId/role` - Update user role (admin only)
+- `DELETE /api/auth/users/:userId` - Delete user (admin only)
+- `GET /api/admin/dashboard` - Get admin dashboard statistics
+- `GET /api/admin/datasets` - Get all datasets (admin only)
+- `GET /api/admin/projects` - Get all projects (admin only)
+
+### Feedback System (NEW - Milestone 4)
+- `POST /api/feedback/submit` - Submit user feedback
+- `GET /api/feedback/user` - Get user's feedback
+- `GET /api/feedback/admin` - Get all feedback (admin only)
+- `PUT /api/feedback/:feedbackId/review` - Review feedback (admin only)
+- `PUT /api/feedback/:feedbackId/retrain` - Mark feedback as retrained
+- `GET /api/feedback/stats` - Get feedback statistics
+
+### Active Learning (NEW - Milestone 4)
+- `POST /api/active-learning/add-uncertain` - Add uncertain sample
+- `GET /api/active-learning/queue` - Get uncertain samples queue
+- `PUT /api/active-learning/:sampleId/annotate` - Annotate uncertain sample
+- `POST /api/active-learning/batch-annotate` - Batch annotate samples
+- `PUT /api/active-learning/:sampleId/retrain` - Mark sample as retrained
+- `DELETE /api/active-learning/:sampleId` - Delete uncertain sample
+- `GET /api/active-learning/stats` - Get active learning statistics
 
 ## 📝 Sample Training Data
 

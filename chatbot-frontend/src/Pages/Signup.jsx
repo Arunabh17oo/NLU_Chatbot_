@@ -39,11 +39,11 @@ function Signup({ goToLogin, onSignupSuccess }) {
       if (res.status === 201) {
         const token = res?.data?.token
         if (token) {
-          localStorage.setItem('auth_token', token)
+          localStorage.setItem('token', token)
         }
         alert('Signup successful')
         if (typeof onSignupSuccess === 'function') {
-          onSignupSuccess()
+          onSignupSuccess(res.data)
         } else if (typeof goToLogin === 'function') {
           goToLogin()
         }

@@ -65,9 +65,10 @@ class HuggingFaceService {
    * Predict intent for a given text using the trained model
    * @param {string} text - Input text to classify
    * @param {string} workspaceId - Workspace identifier
+   * @param {string} userId - User identifier for active learning
    * @returns {Promise<Object>} - Prediction result
    */
-  async predictIntent(text, workspaceId) {
+  async predictIntent(text, workspaceId, userId = null) {
     try {
       const modelInfo = this.trainedModels.get(workspaceId);
       
@@ -80,22 +81,79 @@ class HuggingFaceService {
       // Simple rule-based classification (replace with actual ML model)
       const prediction = this.classifyText(text, modelInfo.trainingData);
       
+      // Calculate uncertainty score (inverse of confidence)
+      const uncertaintyScore = 1 - prediction.confidence;
+      
       const result = {
         text,
         predictedIntent: prediction.intent,
         confidence: prediction.confidence,
+        uncertaintyScore: uncertaintyScore,
         alternatives: prediction.alternatives,
         workspaceId,
-        modelId: modelInfo.id
+        modelId: modelInfo.id,
+        isUncertain: uncertaintyScore > 0.3 // Threshold for uncertainty
       };
 
       console.log(`✅ Prediction: ${prediction.intent} (${(prediction.confidence * 100).toFixed(1)}%)`);
+      console.log(`📊 Uncertainty: ${(uncertaintyScore * 100).toFixed(1)}%`);
+
+      // If prediction is uncertain and user is provided, add to active learning queue
+      if (result.isUncertain && userId) {
+        await this.addToActiveLearningQueue(text, prediction.intent, prediction.confidence, uncertaintyScore, workspaceId, userId);
+      }
 
       return result;
 
     } catch (error) {
       console.error('❌ Intent prediction failed:', error.message);
       throw new Error(`Prediction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add uncertain sample to active learning queue
+   * @param {string} text - Input text
+   * @param {string} predictedIntent - Predicted intent
+   * @param {number} confidence - Confidence score
+   * @param {number} uncertaintyScore - Uncertainty score
+   * @param {string} workspaceId - Workspace identifier
+   * @param {string} userId - User identifier
+   */
+  async addToActiveLearningQueue(text, predictedIntent, confidence, uncertaintyScore, workspaceId, userId) {
+    try {
+      // Import ActiveLearning model dynamically to avoid circular dependencies
+      const { ActiveLearning } = await import('../models/ActiveLearning.js');
+      
+      // Check if sample already exists
+      const existingSample = await ActiveLearning.findOne({
+        text: text,
+        workspaceId: workspaceId,
+        status: { $in: ['pending', 'reviewed'] }
+      });
+
+      if (!existingSample) {
+        // Determine priority based on uncertainty score
+        let priority = 'medium';
+        if (uncertaintyScore > 0.7) priority = 'urgent';
+        else if (uncertaintyScore > 0.5) priority = 'high';
+        else if (uncertaintyScore < 0.2) priority = 'low';
+
+        await ActiveLearning.create({
+          userId: userId,
+          workspaceId: workspaceId,
+          text: text,
+          predictedIntent: predictedIntent,
+          confidence: confidence,
+          uncertaintyScore: uncertaintyScore,
+          priority: priority,
+          status: 'pending'
+        });
+
+        console.log(`📝 Added uncertain sample to active learning queue: "${text}" (${(uncertaintyScore * 100).toFixed(1)}% uncertain)`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to add sample to active learning queue:', error.message);
     }
   }
 

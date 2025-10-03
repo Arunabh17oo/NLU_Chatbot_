@@ -20,6 +20,32 @@ const userSchema = new mongoose.Schema(
     passwordHash: {
       type: String,
       required: true
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user'
+    },
+    isApproved: {
+      type: Boolean,
+      default: false
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    },
+    lastActive: {
+      type: Date,
+      default: Date.now
+    },
+    isActive: {
+      type: Boolean,
+      default: true
     }
   },
   { timestamps: true }

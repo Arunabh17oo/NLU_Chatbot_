@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs-extra';
 import { auth } from '../middleware/auth.js';
+import { requireAuth, requireApproval } from '../middleware/roleAuth.js';
 import { convertJsonToYaml, validateTrainingData } from '../utils/jsonToYaml.js';
 import huggingfaceService from '../services/huggingfaceService.js';
 
@@ -25,7 +26,7 @@ const upload = multer({
 
 // POST /api/training/upload-and-train
 // Upload JSON file, convert to YAML, and train model
-router.post('/upload-and-train', auth, upload.single('trainingData'), async (req, res) => {
+router.post('/upload-and-train', requireAuth, requireApproval, upload.single('trainingData'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -93,7 +94,7 @@ router.post('/upload-and-train', auth, upload.single('trainingData'), async (req
 
 // POST /api/training/predict
 // Predict intent for given text using trained model
-router.post('/predict', auth, async (req, res) => {
+router.post('/predict', requireAuth, requireApproval, async (req, res) => {
   try {
     const { text, workspaceId } = req.body;
 
@@ -101,7 +102,7 @@ router.post('/predict', auth, async (req, res) => {
       return res.status(400).json({ message: 'text and workspaceId are required' });
     }
 
-    const prediction = await huggingfaceService.predictIntent(text, workspaceId);
+    const prediction = await huggingfaceService.predictIntent(text, workspaceId, req.user._id);
 
     res.json({
       message: 'Intent predicted successfully',
@@ -119,7 +120,7 @@ router.post('/predict', auth, async (req, res) => {
 
 // GET /api/training/model-info/:workspaceId
 // Get information about trained model for a workspace
-router.get('/model-info/:workspaceId', auth, async (req, res) => {
+router.get('/model-info/:workspaceId', requireAuth, requireApproval, async (req, res) => {
   try {
     const { workspaceId } = req.params;
     const modelInfo = huggingfaceService.getModelInfo(workspaceId);
@@ -151,7 +152,7 @@ router.get('/model-info/:workspaceId', auth, async (req, res) => {
 
 // GET /api/training/models
 // List all trained models
-router.get('/models', auth, async (req, res) => {
+router.get('/models', requireAuth, requireApproval, async (req, res) => {
   try {
     const models = huggingfaceService.listModels();
 
@@ -178,7 +179,7 @@ router.get('/models', auth, async (req, res) => {
 
 // DELETE /api/training/model/:workspaceId
 // Delete trained model for a workspace
-router.delete('/model/:workspaceId', auth, async (req, res) => {
+router.delete('/model/:workspaceId', requireAuth, requireApproval, async (req, res) => {
   try {
     const { workspaceId } = req.params;
     const deleted = huggingfaceService.deleteModel(workspaceId);
@@ -198,6 +199,53 @@ router.delete('/model/:workspaceId', auth, async (req, res) => {
       message: 'Failed to delete model',
       error: error.message 
     });
+  }
+});
+
+// POST /api/training/submit-feedback - Submit feedback for a prediction
+router.post('/submit-feedback', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const {
+      workspaceId,
+      originalText,
+      originalIntent,
+      originalConfidence,
+      correctedIntent,
+      feedbackType = 'correction',
+      feedbackText
+    } = req.body;
+
+    if (!workspaceId || !originalText || !originalIntent || !correctedIntent) {
+      return res.status(400).json({ 
+        message: 'workspaceId, originalText, originalIntent, and correctedIntent are required' 
+      });
+    }
+
+    // Import Feedback model dynamically
+    const { Feedback } = await import('../models/Feedback.js');
+
+    const feedback = await Feedback.create({
+      userId: req.user._id,
+      workspaceId,
+      originalText,
+      originalIntent,
+      originalConfidence: originalConfidence || 0,
+      correctedIntent,
+      feedbackType,
+      feedbackText
+    });
+
+    res.status(201).json({
+      message: 'Feedback submitted successfully',
+      feedback: {
+        id: feedback._id,
+        status: feedback.status,
+        submittedAt: feedback.createdAt
+      }
+    });
+  } catch (err) {
+    console.error('Submit feedback error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

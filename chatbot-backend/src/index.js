@@ -9,6 +9,9 @@ import chatRoutes from './routes/chat.js';
 import trainingRoutes from './routes/training.js';
 import evaluationRoutes from './routes/evaluation.js';
 import modelVersioningRoutes from './routes/modelVersioning.js';
+import feedbackRoutes from './routes/feedback.js';
+import activeLearningRoutes from './routes/activeLearning.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +35,9 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/evaluation', evaluationRoutes);
 app.use('/api/model-versioning', modelVersioningRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/active-learning', activeLearningRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));

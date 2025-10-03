@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import './Workspace.css'
-import { FiPlus, FiFolder, FiUpload, FiCpu, FiCheck, FiBarChart2, FiGitBranch } from 'react-icons/fi'
+import { FiPlus, FiFolder, FiUpload, FiCpu, FiCheck, FiBarChart2, FiGitBranch, FiMessageCircle, FiZap, FiSettings } from 'react-icons/fi'
 import EvaluationDashboard from './EvaluationDashboard'
 import ModelVersioningDashboard from './ModelVersioningDashboard'
 
@@ -52,7 +52,7 @@ function suggestIntents(text) {
   return Array.from(suggestions)
 }
 
-export default function Workspace({ goToLogin }) {
+export default function Workspace({ goToLogin, user, onPageChange }) {
   const [workspaces, setWorkspaces] = useState([])
   const [newWs, setNewWs] = useState('')
   const [selectedWorkspace, setSelectedWorkspace] = useState(null)
@@ -196,7 +196,7 @@ export default function Workspace({ goToLogin }) {
     setPredictionResult(null)
 
     try {
-      const token = localStorage.getItem('auth_token')
+      const token = localStorage.getItem('token')
       const response = await axios.post('http://localhost:3001/api/training/predict', {
         text: utterance,
         workspaceId: selectedWorkspace.id
@@ -213,6 +213,33 @@ export default function Workspace({ goToLogin }) {
       alert(error.response?.data?.message || 'Prediction failed')
     } finally {
       setIsPredicting(false)
+    }
+  }
+
+  const submitFeedback = async (correctedIntent, feedbackText = '') => {
+    if (!predictionResult) return
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post('http://localhost:3001/api/training/submit-feedback', {
+        workspaceId: selectedWorkspace.id,
+        originalText: predictionResult.text,
+        originalIntent: predictionResult.predictedIntent,
+        originalConfidence: predictionResult.confidence,
+        correctedIntent: correctedIntent,
+        feedbackType: 'correction',
+        feedbackText: feedbackText
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      alert('Feedback submitted successfully! Thank you for helping improve the model.')
+    } catch (error) {
+      console.error('Feedback submission error:', error)
+      alert('Failed to submit feedback. Please try again.')
     }
   }
 
@@ -289,6 +316,26 @@ export default function Workspace({ goToLogin }) {
             >
               <FiGitBranch /> Versioning
             </button>
+            <button 
+              className={`ws-tab ${activeTab === 'feedback' ? 'active' : ''}`}
+              onClick={() => onPageChange('feedback')}
+            >
+              <FiMessageCircle /> Feedback
+            </button>
+            <button 
+              className={`ws-tab ${activeTab === 'active-learning' ? 'active' : ''}`}
+              onClick={() => onPageChange('active-learning')}
+            >
+              <FiZap /> Active Learning
+            </button>
+            {user?.role === 'admin' && (
+              <button 
+                className={`ws-tab admin-tab`}
+                onClick={() => onPageChange('admin')}
+              >
+                <FiSettings /> Admin Panel
+              </button>
+            )}
           </div>
 
           {/* Tab Content */}
@@ -348,10 +395,20 @@ export default function Workspace({ goToLogin }) {
             </button>
             
             {predictionResult && (
-              <div className="prediction-result" style={{ marginTop: '1rem', padding: '1rem', background: '#f0f8ff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Prediction Result:</div>
+              <div className="prediction-result" style={{ marginTop: '1rem', padding: '1rem', background: predictionResult.isUncertain ? '#fff3cd' : '#f0f8ff', borderRadius: '8px', border: `1px solid ${predictionResult.isUncertain ? '#ffc107' : '#e2e8f0'}` }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Prediction Result:
+                  {predictionResult.isUncertain && (
+                    <span style={{ background: '#ffc107', color: '#856404', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>
+                      ⚠️ Uncertain
+                    </span>
+                  )}
+                </div>
                 <div><strong>Intent:</strong> {predictionResult.predictedIntent}</div>
                 <div><strong>Confidence:</strong> {(predictionResult.confidence * 100).toFixed(1)}%</div>
+                {predictionResult.uncertaintyScore && (
+                  <div><strong>Uncertainty:</strong> {(predictionResult.uncertaintyScore * 100).toFixed(1)}%</div>
+                )}
                 {predictionResult.alternatives && predictionResult.alternatives.length > 0 && (
                   <div style={{ marginTop: '0.5rem' }}>
                     <strong>Alternatives:</strong>
@@ -362,6 +419,36 @@ export default function Workspace({ goToLogin }) {
                     </div>
                   </div>
                 )}
+                
+                {/* Feedback Section */}
+                <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Is this prediction correct?</div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                    <button 
+                      style={{ background: '#28a745', color: 'white', border: 'none', padding: '0.25rem 0.75rem', borderRadius: '4px', cursor: 'pointer' }}
+                      onClick={() => alert('Great! The prediction was correct.')}
+                    >
+                      ✅ Correct
+                    </button>
+                    <button 
+                      style={{ background: '#dc3545', color: 'white', border: 'none', padding: '0.25rem 0.75rem', borderRadius: '4px', cursor: 'pointer' }}
+                      onClick={() => {
+                        const correctedIntent = prompt('What should the correct intent be?', predictionResult.predictedIntent);
+                        if (correctedIntent && correctedIntent.trim()) {
+                          const feedbackText = prompt('Any additional comments? (optional)', '');
+                          submitFeedback(correctedIntent.trim(), feedbackText || '');
+                        }
+                      }}
+                    >
+                      ❌ Incorrect - Correct it
+                    </button>
+                  </div>
+                  {predictionResult.isUncertain && (
+                    <div style={{ fontSize: '0.85rem', color: '#856404' }}>
+                      💡 This prediction has low confidence and has been added to the Active Learning queue for review.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

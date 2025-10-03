@@ -39,8 +39,8 @@ function Login({ goToSignup, onLoginSuccess }) {
       if (res.status === 200) {
         alert('Login successful')
         const token = res?.data?.token
-        if (token) localStorage.setItem('auth_token', token)
-        if (typeof onLoginSuccess === 'function') onLoginSuccess()
+        if (token) localStorage.setItem('token', token)
+        if (typeof onLoginSuccess === 'function') onLoginSuccess(res.data)
       }
     } catch (err) {
       const status = err?.response?.status

@@ -6,8 +6,53 @@ import { auth } from '../middleware/auth.js';
 import { requireAuth, requireApproval } from '../middleware/roleAuth.js';
 import { convertJsonToYaml, validateTrainingData } from '../utils/jsonToYaml.js';
 import huggingfaceService from '../services/huggingfaceService.js';
+import { Dataset } from '../models/Dataset.js';
+import { Project } from '../models/Project.js';
 
 const router = express.Router();
+
+// POST /api/training/workspace - Create a new workspace and project
+router.post('/workspace', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: 'Workspace name is required' });
+    }
+
+    const workspaceId = String(Date.now());
+    const project = await Project.create({
+      name: name,
+      description: description || `Project for workspace ${workspaceId}`,
+      ownerId: req.user._id,
+      workspaceId: workspaceId,
+      datasetIds: [],
+      status: 'draft',
+      currentModelVersion: '1.0.0',
+      isActive: true
+    });
+
+    res.status(201).json({
+      message: 'Workspace and project created successfully',
+      workspace: {
+        id: workspaceId,
+        name: name,
+        createdAt: new Date().toISOString()
+      },
+      project: {
+        id: project._id,
+        name: project.name,
+        status: project.status
+      }
+    });
+  } catch (error) {
+    console.error('Workspace creation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create workspace',
+      error: error.message 
+    });
+  }
+});
 
 // Configure multer for file uploads
 const upload = multer({
@@ -68,12 +113,86 @@ router.post('/upload-and-train', requireAuth, requireApproval, upload.single('tr
     // Train model using HuggingFace
     const trainingResult = await huggingfaceService.trainModel(yamlPath, workspaceId);
 
+    // Save dataset to database
+    const uniqueIntents = [...new Set(jsonData.map(item => item.intent || item.Intent || item.label).filter(Boolean))];
+    const intentCounts = {};
+    uniqueIntents.forEach(intent => {
+      intentCounts[intent] = jsonData.filter(item => (item.intent || item.Intent || item.label) === intent).length;
+    });
+
+    const dataset = await Dataset.create({
+      name: req.file.originalname.replace('.json', ''),
+      description: `Dataset uploaded for workspace ${workspaceId}`,
+      ownerId: req.user._id,
+      workspaceId: workspaceId,
+      data: jsonData.map(item => ({
+        text: item.text || item.Text || item.utterance || '',
+        intent: item.intent || item.Intent || item.label || '',
+        confidence: 1.0,
+        isAnnotated: true,
+        annotatedBy: req.user._id,
+        annotatedAt: new Date()
+      })),
+      totalSamples: jsonData.length,
+      uniqueIntents: uniqueIntents,
+      intentCounts: intentCounts,
+      isPublic: false,
+      tags: ['training', 'uploaded'],
+      version: '1.0.0',
+      isActive: true
+    });
+
+    // Create or update project
+    let project = await Project.findOne({ workspaceId: workspaceId, ownerId: req.user._id });
+    if (!project) {
+      project = await Project.create({
+        name: `Project for ${workspaceId}`,
+        description: `Project created for workspace ${workspaceId}`,
+        ownerId: req.user._id,
+        workspaceId: workspaceId,
+        datasetIds: [dataset._id],
+        status: 'trained',
+        currentModelVersion: '1.0.0',
+        performance: {
+          accuracy: trainingResult.accuracy || 0,
+          lastEvaluated: new Date()
+        },
+        isActive: true
+      });
+    } else {
+      // Update existing project
+      if (!project.datasetIds.includes(dataset._id)) {
+        project.datasetIds.push(dataset._id);
+      }
+      project.status = 'trained';
+      project.currentModelVersion = '1.0.0';
+      if (trainingResult.accuracy) {
+        project.performance = {
+          ...project.performance,
+          accuracy: trainingResult.accuracy,
+          lastEvaluated: new Date()
+        };
+      }
+      await project.save();
+    }
+
     // Clean up temporary files
     await fs.remove(req.file.path);
     await fs.remove(yamlPath);
 
     res.status(200).json({
       message: 'Model trained successfully',
+      dataset: {
+        id: dataset._id,
+        name: dataset.name,
+        totalSamples: dataset.totalSamples,
+        uniqueIntents: dataset.uniqueIntents.length
+      },
+      project: {
+        id: project._id,
+        name: project.name,
+        status: project.status
+      },
       ...trainingResult
     });
 

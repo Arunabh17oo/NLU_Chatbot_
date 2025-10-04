@@ -215,6 +215,50 @@ const AdminDashboard = ({ onLogout, user }) => {
     }
   };
 
+  const handleDeleteDataset = async (datasetId) => {
+    if (window.confirm('Are you sure you want to delete this dataset?')) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/admin/datasets/${datasetId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          fetchDatasets(); // Refresh datasets list
+          fetchDashboardStats(); // Refresh dashboard stats
+        }
+      } catch (error) {
+        console.error('Error deleting dataset:', error);
+      }
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/admin/projects/${projectId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          fetchProjects(); // Refresh projects list
+          fetchDashboardStats(); // Refresh dashboard stats
+        }
+      } catch (error) {
+        console.error('Error deleting project:', error);
+      }
+    }
+  };
+
   const renderDashboard = () => (
     <div className="dashboard-content">
       <h2>Admin Dashboard</h2>
@@ -464,7 +508,11 @@ const AdminDashboard = ({ onLogout, user }) => {
                       <button className="btn-edit" title="Edit Dataset">
                         <FaEdit />
                       </button>
-                      <button className="btn-delete" title="Delete Dataset">
+                      <button 
+                        className="btn-delete" 
+                        title="Delete Dataset"
+                        onClick={() => handleDeleteDataset(dataset._id)}
+                      >
                         <FaTrash />
                       </button>
                     </div>
@@ -545,7 +593,11 @@ const AdminDashboard = ({ onLogout, user }) => {
                       <button className="btn-edit" title="Edit Project">
                         <FaEdit />
                       </button>
-                      <button className="btn-delete" title="Delete Project">
+                      <button 
+                        className="btn-delete" 
+                        title="Delete Project"
+                        onClick={() => handleDeleteProject(project._id)}
+                      >
                         <FaTrash />
                       </button>
                     </div>

@@ -87,7 +87,7 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
     setSuggested(suggestIntents(utterance))
   }, [utterance])
 
-  const createWorkspace = (e) => {
+  const createWorkspace = async (e) => {
     e.preventDefault()
     const name = newWs.trim()
     if (!name) return
@@ -95,20 +95,63 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
       alert('Workspace already exists')
       return
     }
-    const d = new Date()
-    const createdAt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    const workspaceId = String(Date.now())
-    const newWorkspace = { id: workspaceId, name, createdAt }
-    setWorkspaces([newWorkspace, ...workspaces])
-    setSelectedWorkspace(newWorkspace)
-    setNewWs('')
-    alert('Workspace created')
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post('http://localhost:3001/api/training/workspace', {
+        name: name,
+        description: `Workspace created by ${user?.username || 'user'}`
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      const d = new Date()
+      const createdAt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      const newWorkspace = { 
+        id: response.data.workspace.id, 
+        name, 
+        createdAt,
+        projectId: response.data.project.id
+      }
+      setWorkspaces([newWorkspace, ...workspaces])
+      setSelectedWorkspace(newWorkspace)
+      setNewWs('')
+      alert('Workspace and project created successfully')
+    } catch (error) {
+      console.error('Workspace creation error:', error)
+      alert('Failed to create workspace. Please try again.')
+    }
   }
 
-  const deleteWorkspace = (id, name) => {
+  const deleteWorkspace = async (id, name) => {
     const ok = confirm(`Delete workspace "${name}"? This cannot be undone.`)
     if (!ok) return
-    setWorkspaces(prev => prev.filter(w => w.id !== id))
+
+    try {
+      const token = localStorage.getItem('token')
+      const workspace = workspaces.find(w => w.id === id)
+      
+      if (workspace?.projectId) {
+        await axios.delete(`http://localhost:3001/api/admin/projects/${workspace.projectId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      }
+      
+      setWorkspaces(prev => prev.filter(w => w.id !== id))
+      if (selectedWorkspace?.id === id) {
+        setSelectedWorkspace(null)
+      }
+      alert('Workspace and project deleted successfully')
+    } catch (error) {
+      console.error('Workspace deletion error:', error)
+      alert('Failed to delete workspace. Please try again.')
+    }
   }
 
   const onSelectFile = (e) => {

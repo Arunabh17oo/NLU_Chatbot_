@@ -341,6 +341,7 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
             )}
           </div>
         </div>
+
       </div>
 
       {loading ? (
@@ -642,3 +643,4 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
 };
 
 export default ActiveLearningDashboard;
+

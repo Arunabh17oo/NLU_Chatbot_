@@ -15,7 +15,14 @@ import {
   FaCheck,
   FaTimes,
   FaSearch,
-  FaFilter
+  FaFilter,
+  FaCommentAlt,
+  FaClock,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaThumbsUp,
+  FaThumbsDown,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 
 const AdminDashboard = ({ onLogout, user }) => {
@@ -37,6 +44,10 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [showDatasetModal, setShowDatasetModal] = useState(false);
   const [editingDataset, setEditingDataset] = useState(null);
   const [showDatasetEditModal, setShowDatasetEditModal] = useState(false);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackStats, setFeedbackStats] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -47,6 +58,9 @@ const AdminDashboard = ({ onLogout, user }) => {
       fetchDatasets();
     } else if (activeTab === 'projects') {
       fetchProjects();
+    } else if (activeTab === 'feedback') {
+      fetchFeedbacks();
+      fetchFeedbackStats();
     }
   }, [activeTab, currentPage, searchTerm, filterStatus]);
 
@@ -359,6 +373,120 @@ const AdminDashboard = ({ onLogout, user }) => {
     } catch (error) {
       console.error('Error updating dataset:', error);
     }
+  };
+
+  const fetchFeedbacks = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+        status: filterStatus !== 'all' ? filterStatus : undefined
+      });
+
+      const response = await fetch(`http://localhost:3001/api/feedback/admin?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFeedbacks(data.feedbacks);
+        setTotalPages(data.totalPages);
+      }
+    } catch (error) {
+      console.error('Error fetching feedbacks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFeedbackStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/feedback/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFeedbackStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching feedback stats:', error);
+    }
+  };
+
+  const handleReviewFeedback = async (feedbackId, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/feedback/${feedbackId}/review`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        fetchFeedbacks(); // Refresh feedbacks list
+        fetchFeedbackStats(); // Refresh stats
+        setShowFeedbackModal(false);
+        setSelectedFeedback(null);
+      }
+    } catch (error) {
+      console.error('Error reviewing feedback:', error);
+    }
+  };
+
+  const handleViewFeedback = (feedback) => {
+    setSelectedFeedback(feedback);
+    setShowFeedbackModal(true);
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending':
+        return <FaClock className="status-icon pending" />;
+      case 'reviewed':
+        return <FaEye className="status-icon reviewed" />;
+      case 'applied':
+        return <FaCheckCircle className="status-icon applied" />;
+      case 'rejected':
+        return <FaTimesCircle className="status-icon rejected" />;
+      default:
+        return <FaClock className="status-icon" />;
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'correction':
+        return <FaExclamationTriangle className="type-icon correction" />;
+      case 'suggestion':
+        return <FaThumbsUp className="type-icon suggestion" />;
+      case 'complaint':
+        return <FaThumbsDown className="type-icon complaint" />;
+      default:
+        return <FaCommentAlt className="type-icon" />;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const renderDashboard = () => (
@@ -729,6 +857,196 @@ const AdminDashboard = ({ onLogout, user }) => {
     </div>
   );
 
+  const renderFeedbackStats = () => (
+    <div className="feedback-stats">
+      {feedbackStats && (
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">
+              <FaCommentAlt />
+            </div>
+            <div className="stat-info">
+              <h3>{feedbackStats.total}</h3>
+              <p>Total Feedback</p>
+            </div>
+          </div>
+          
+          <div className="stat-card pending">
+            <div className="stat-icon">
+              <FaClock />
+            </div>
+            <div className="stat-info">
+              <h3>{feedbackStats.pending}</h3>
+              <p>Pending Review</p>
+            </div>
+          </div>
+          
+          <div className="stat-card applied">
+            <div className="stat-icon">
+              <FaCheckCircle />
+            </div>
+            <div className="stat-info">
+              <h3>{feedbackStats.applied}</h3>
+              <p>Applied</p>
+            </div>
+          </div>
+          
+          <div className="stat-card rejected">
+            <div className="stat-icon">
+              <FaTimesCircle />
+            </div>
+            <div className="stat-info">
+              <h3>{feedbackStats.rejected}</h3>
+              <p>Rejected</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderFeedback = () => (
+    <div className="feedback-content">
+      {renderFeedbackStats()}
+      
+      <div className="content-header">
+        <h2>Review Feedback</h2>
+        <div className="search-filters">
+          <div className="search-box">
+            <FaSearch />
+            <input
+              type="text"
+              placeholder="Search feedback..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="filter-select"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="applied">Applied</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="loading">Loading feedback...</div>
+      ) : (
+        <div className="feedback-list">
+          {feedbacks.map(feedback => (
+            <div key={feedback._id} className="feedback-item">
+              <div className="feedback-header">
+                <div className="feedback-meta">
+                  <div className="feedback-type">
+                    {getTypeIcon(feedback.feedbackType)}
+                    <span className="type-text">{feedback.feedbackType}</span>
+                  </div>
+                  <div className="feedback-status">
+                    {getStatusIcon(feedback.status)}
+                    <span className="status-text">{feedback.status}</span>
+                  </div>
+                  <div className="feedback-date">
+                    {formatDate(feedback.createdAt)}
+                  </div>
+                  <div className="feedback-user">
+                    <strong>User:</strong> {feedback.userId?.username || 'Unknown'}
+                  </div>
+                </div>
+                <div className="action-buttons">
+                  <button
+                    className="btn-view"
+                    onClick={() => handleViewFeedback(feedback)}
+                    title="View Details"
+                  >
+                    <FaEye />
+                  </button>
+                  {feedback.status === 'pending' && (
+                    <>
+                      <button
+                        className="btn-approve"
+                        onClick={() => handleReviewFeedback(feedback._id, 'applied')}
+                        title="Accept Feedback"
+                      >
+                        <FaCheck />
+                      </button>
+                      <button
+                        className="btn-reject"
+                        onClick={() => handleReviewFeedback(feedback._id, 'rejected')}
+                        title="Reject Feedback"
+                      >
+                        <FaTimes />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              <div className="feedback-content">
+                <div className="original-text">
+                  <strong>Original Text:</strong> "{feedback.originalText}"
+                </div>
+                <div className="intent-comparison">
+                  <div className="original-intent">
+                    <span className="label">Original Intent:</span>
+                    <span className="intent-badge original">
+                      {feedback.originalIntent}
+                    </span>
+                    <span className="confidence">
+                      ({(feedback.originalConfidence * 100).toFixed(1)}%)
+                    </span>
+                  </div>
+                  <div className="corrected-intent">
+                    <span className="label">Corrected Intent:</span>
+                    <span className="intent-badge corrected">
+                      {feedback.correctedIntent}
+                    </span>
+                  </div>
+                </div>
+                {feedback.feedbackText && (
+                  <div className="feedback-text">
+                    <strong>User Comment:</strong> {feedback.feedbackText}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {feedbacks.length === 0 && (
+            <div className="empty-state">
+              <FaCommentAlt className="empty-icon" />
+              <h3>No feedback found</h3>
+              <p>No feedback matches your current filters.</p>
+            </div>
+          )}
+          
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span>Page {currentPage} of {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="admin-dashboard">
       <div className="admin-sidebar">
@@ -771,6 +1089,13 @@ const AdminDashboard = ({ onLogout, user }) => {
             <FaProjectDiagram />
             Projects
           </button>
+          <button
+            className={`nav-item ${activeTab === 'feedback' ? 'active' : ''}`}
+            onClick={() => setActiveTab('feedback')}
+          >
+            <FaCommentAlt />
+            Review Feedback
+          </button>
         </nav>
         
         <div className="admin-footer">
@@ -786,6 +1111,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         {activeTab === 'users' && renderUsers()}
         {activeTab === 'datasets' && renderDatasets()}
         {activeTab === 'projects' && renderProjects()}
+        {activeTab === 'feedback' && renderFeedback()}
       </div>
 
       {/* Project View Modal */}
@@ -1109,6 +1435,95 @@ const AdminDashboard = ({ onLogout, user }) => {
                   <button type="submit">Update Dataset</button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback View Modal */}
+      {showFeedbackModal && selectedFeedback && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Feedback Details</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setSelectedFeedback(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-section">
+                <h4>User Information</h4>
+                <div className="detail-content">
+                  <p><strong>User:</strong> {selectedFeedback.userId?.username || 'Unknown'}</p>
+                  <p><strong>Email:</strong> {selectedFeedback.userId?.email || 'N/A'}</p>
+                  <p><strong>Submitted:</strong> {formatDate(selectedFeedback.createdAt)}</p>
+                </div>
+              </div>
+              
+              <div className="detail-section">
+                <h4>Original Prediction</h4>
+                <div className="detail-content">
+                  <p><strong>Text:</strong> "{selectedFeedback.originalText}"</p>
+                  <p><strong>Predicted Intent:</strong> {selectedFeedback.originalIntent}</p>
+                  <p><strong>Confidence:</strong> {(selectedFeedback.originalConfidence * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+              
+              <div className="detail-section">
+                <h4>User Correction</h4>
+                <div className="detail-content">
+                  <p><strong>Corrected Intent:</strong> {selectedFeedback.correctedIntent}</p>
+                  <p><strong>Feedback Type:</strong> {selectedFeedback.feedbackType}</p>
+                  {selectedFeedback.feedbackText && (
+                    <p><strong>Additional Comments:</strong> {selectedFeedback.feedbackText}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="detail-section">
+                <h4>Status Information</h4>
+                <div className="detail-content">
+                  <p><strong>Status:</strong> 
+                    <span className={`status-badge ${selectedFeedback.status}`}>
+                      {selectedFeedback.status}
+                    </span>
+                  </p>
+                  {selectedFeedback.reviewedAt && (
+                    <p><strong>Reviewed:</strong> {formatDate(selectedFeedback.reviewedAt)}</p>
+                  )}
+                  {selectedFeedback.reviewedBy && (
+                    <p><strong>Reviewed By:</strong> {selectedFeedback.reviewedBy.username}</p>
+                  )}
+                  {selectedFeedback.isRetrained && (
+                    <p><strong>Retrained:</strong> {formatDate(selectedFeedback.retrainedAt)}</p>
+                  )}
+                </div>
+              </div>
+
+              {selectedFeedback.status === 'pending' && (
+                <div className="modal-actions">
+                  <button
+                    className="btn-approve"
+                    onClick={() => handleReviewFeedback(selectedFeedback._id, 'applied')}
+                  >
+                    <FaCheck />
+                    Accept Feedback
+                  </button>
+                  <button
+                    className="btn-reject"
+                    onClick={() => handleReviewFeedback(selectedFeedback._id, 'rejected')}
+                  >
+                    <FaTimes />
+                    Reject Feedback
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -742,6 +742,228 @@
   background: #5a67d8;
 }
 
+/* Feedback Styles */
+.feedback-content {
+  padding: 2rem;
+}
+
+.feedback-stats {
+  margin-bottom: 2rem;
+}
+
+.feedback-list {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.feedback-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.feedback-item:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.feedback-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.feedback-type,
+.feedback-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.type-icon,
+.status-icon {
+  font-size: 1rem;
+}
+
+.type-icon.correction {
+  color: #f56565;
+}
+
+.type-icon.suggestion {
+  color: #48bb78;
+}
+
+.type-icon.complaint {
+  color: #ed8936;
+}
+
+.status-icon.pending {
+  color: #f56565;
+}
+
+.status-icon.reviewed {
+  color: #4299e1;
+}
+
+.status-icon.applied {
+  color: #48bb78;
+}
+
+.status-icon.rejected {
+  color: #f56565;
+}
+
+.type-text,
+.status-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.feedback-date,
+.feedback-user {
+  color: #718096;
+  font-size: 0.85rem;
+}
+
+.original-text {
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 6px;
+  border-left: 3px solid #e2e8f0;
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
+.intent-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.original-intent,
+.corrected-intent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.intent-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-block;
+  width: fit-content;
+}
+
+.intent-badge.original {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.intent-badge.corrected {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.confidence {
+  font-size: 0.8rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.feedback-text {
+  padding: 1rem;
+  background: #f0fff4;
+  border-radius: 6px;
+  border-left: 3px solid #48bb78;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #718096;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #4a5568;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.modal-actions button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modal-actions .btn-approve {
+  background: #48bb78;
+  color: white;
+}
+
+.modal-actions .btn-approve:hover {
+  background: #38a169;
+}
+
+.modal-actions .btn-reject {
+  background: #f56565;
+  color: white;
+}
+
+.modal-actions .btn-reject:hover {
+  background: #e53e3e;
+}
+
 /* Responsive Modal */
 @media (max-width: 768px) {
   .modal-content {
@@ -764,5 +986,22 @@
   
   .form-actions button {
     width: 100%;
+  }
+  
+  .feedback-content {
+    padding: 1rem;
+  }
+  
+  .intent-comparison {
+    grid-template-columns: 1fr;
+  }
+  
+  .feedback-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
   }
 }

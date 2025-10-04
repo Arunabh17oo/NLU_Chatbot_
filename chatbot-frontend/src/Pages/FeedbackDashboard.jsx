@@ -125,11 +125,20 @@ const FeedbackDashboard = ({ onBack, user }) => {
     });
   };
 
+  const handleStatClick = (status) => {
+    setFilterStatus(status);
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
   const renderStats = () => (
     <div className="feedback-stats">
       {stats && (
         <div className="stats-grid">
-          <div className="stat-card">
+          <div 
+            className={`stat-card ${filterStatus === 'all' ? 'active' : ''}`}
+            onClick={() => handleStatClick('all')}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="stat-icon">
               <FaCommentAlt />
             </div>
@@ -139,7 +148,11 @@ const FeedbackDashboard = ({ onBack, user }) => {
             </div>
           </div>
           
-          <div className="stat-card pending">
+          <div 
+            className={`stat-card pending ${filterStatus === 'pending' ? 'active' : ''}`}
+            onClick={() => handleStatClick('pending')}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="stat-icon">
               <FaClock />
             </div>
@@ -149,7 +162,11 @@ const FeedbackDashboard = ({ onBack, user }) => {
             </div>
           </div>
           
-          <div className="stat-card applied">
+          <div 
+            className={`stat-card applied ${filterStatus === 'applied' ? 'active' : ''}`}
+            onClick={() => handleStatClick('applied')}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="stat-icon">
               <FaCheckCircle />
             </div>
@@ -159,7 +176,11 @@ const FeedbackDashboard = ({ onBack, user }) => {
             </div>
           </div>
           
-          <div className="stat-card rejected">
+          <div 
+            className={`stat-card rejected ${filterStatus === 'rejected' ? 'active' : ''}`}
+            onClick={() => handleStatClick('rejected')}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="stat-icon">
               <FaTimesCircle />
             </div>

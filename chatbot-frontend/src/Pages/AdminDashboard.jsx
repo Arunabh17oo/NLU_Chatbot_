@@ -29,6 +29,14 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedDataset, setSelectedDataset] = useState(null);
+  const [showDatasetModal, setShowDatasetModal] = useState(false);
+  const [editingDataset, setEditingDataset] = useState(null);
+  const [showDatasetEditModal, setShowDatasetEditModal] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -256,6 +264,100 @@ const AdminDashboard = ({ onLogout, user }) => {
       } catch (error) {
         console.error('Error deleting project:', error);
       }
+    }
+  };
+
+  const handleViewProject = async (projectId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/admin/projects/${projectId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedProject(data.project);
+        setShowProjectModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error);
+    }
+  };
+
+  const handleEditProject = (project) => {
+    setEditingProject(project);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateProject = async (projectId, updatedData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/admin/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedData)
+      });
+
+      if (response.ok) {
+        fetchProjects(); // Refresh projects list
+        setShowEditModal(false);
+        setEditingProject(null);
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+    }
+  };
+
+  const handleViewDataset = async (datasetId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/admin/datasets/${datasetId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedDataset(data.dataset);
+        setShowDatasetModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching dataset:', error);
+    }
+  };
+
+  const handleEditDataset = (dataset) => {
+    setEditingDataset(dataset);
+    setShowDatasetEditModal(true);
+  };
+
+  const handleUpdateDataset = async (datasetId, updatedData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/admin/datasets/${datasetId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedData)
+      });
+
+      if (response.ok) {
+        fetchDatasets(); // Refresh datasets list
+        setShowDatasetEditModal(false);
+        setEditingDataset(null);
+      }
+    } catch (error) {
+      console.error('Error updating dataset:', error);
     }
   };
 
@@ -502,10 +604,18 @@ const AdminDashboard = ({ onLogout, user }) => {
                   <td>{new Date(dataset.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-view" title="View Dataset">
+                      <button 
+                        className="btn-view" 
+                        title="View Dataset"
+                        onClick={() => handleViewDataset(dataset._id)}
+                      >
                         <FaEye />
                       </button>
-                      <button className="btn-edit" title="Edit Dataset">
+                      <button 
+                        className="btn-edit" 
+                        title="Edit Dataset"
+                        onClick={() => handleEditDataset(dataset)}
+                      >
                         <FaEdit />
                       </button>
                       <button 
@@ -587,10 +697,18 @@ const AdminDashboard = ({ onLogout, user }) => {
                   <td>{new Date(project.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
-                      <button className="btn-view" title="View Project">
+                      <button 
+                        className="btn-view" 
+                        title="View Project"
+                        onClick={() => handleViewProject(project._id)}
+                      >
                         <FaEye />
                       </button>
-                      <button className="btn-edit" title="Edit Project">
+                      <button 
+                        className="btn-edit" 
+                        title="Edit Project"
+                        onClick={() => handleEditProject(project)}
+                      >
                         <FaEdit />
                       </button>
                       <button 
@@ -669,6 +787,332 @@ const AdminDashboard = ({ onLogout, user }) => {
         {activeTab === 'datasets' && renderDatasets()}
         {activeTab === 'projects' && renderProjects()}
       </div>
+
+      {/* Project View Modal */}
+      {showProjectModal && selectedProject && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Project Details</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowProjectModal(false);
+                  setSelectedProject(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="project-details">
+                <div className="detail-row">
+                  <label>Name:</label>
+                  <span>{selectedProject.name}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Description:</label>
+                  <span>{selectedProject.description || 'No description'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Owner:</label>
+                  <span>{selectedProject.ownerId?.username || 'Unknown'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Status:</label>
+                  <span className={`status-badge ${selectedProject.status}`}>
+                    {selectedProject.status}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <label>Model Version:</label>
+                  <span>{selectedProject.currentModelVersion || 'N/A'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Performance:</label>
+                  <span>
+                    {selectedProject.performance?.accuracy ? 
+                      `${(selectedProject.performance.accuracy * 100).toFixed(1)}%` : 
+                      'N/A'
+                    }
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <label>Created:</label>
+                  <span>{new Date(selectedProject.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Last Modified:</label>
+                  <span>{new Date(selectedProject.updatedAt).toLocaleDateString()}</span>
+                </div>
+                {selectedProject.tags && selectedProject.tags.length > 0 && (
+                  <div className="detail-row">
+                    <label>Tags:</label>
+                    <div className="tags">
+                      {selectedProject.tags.map((tag, index) => (
+                        <span key={index} className="tag">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Edit Modal */}
+      {showEditModal && editingProject && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Edit Project</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingProject(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedData = {
+                  name: formData.get('name'),
+                  description: formData.get('description'),
+                  status: formData.get('status'),
+                  isPublic: formData.get('isPublic') === 'true',
+                  tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : []
+                };
+                handleUpdateProject(editingProject._id, updatedData);
+              }}>
+                <div className="form-group">
+                  <label htmlFor="name">Project Name:</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    defaultValue={editingProject.name}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="description">Description:</label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingProject.description || ''}
+                    rows="3"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="status">Status:</label>
+                  <select
+                    id="status"
+                    name="status"
+                    defaultValue={editingProject.status}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="training">Training</option>
+                    <option value="completed">Completed</option>
+                    <option value="deployed">Deployed</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="isPublic">Public:</label>
+                  <select
+                    id="isPublic"
+                    name="isPublic"
+                    defaultValue={editingProject.isPublic ? 'true' : 'false'}
+                  >
+                    <option value="false">Private</option>
+                    <option value="true">Public</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tags">Tags (comma-separated):</label>
+                  <input
+                    type="text"
+                    id="tags"
+                    name="tags"
+                    defaultValue={editingProject.tags ? editingProject.tags.join(', ') : ''}
+                    placeholder="e.g., nlp, chatbot, ai"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="button" onClick={() => {
+                    setShowEditModal(false);
+                    setEditingProject(null);
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="submit">Update Project</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dataset View Modal */}
+      {showDatasetModal && selectedDataset && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Dataset Details</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowDatasetModal(false);
+                  setSelectedDataset(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="project-details">
+                <div className="detail-row">
+                  <label>Name:</label>
+                  <span>{selectedDataset.name}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Description:</label>
+                  <span>{selectedDataset.description || 'No description'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Owner:</label>
+                  <span>{selectedDataset.ownerId?.username || 'Unknown'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Status:</label>
+                  <span className={`status-badge ${selectedDataset.isActive ? 'active' : 'inactive'}`}>
+                    {selectedDataset.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <label>Total Samples:</label>
+                  <span>{selectedDataset.totalSamples || 0}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Unique Intents:</label>
+                  <span>{selectedDataset.uniqueIntents?.length || 0}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Public:</label>
+                  <span>{selectedDataset.isPublic ? 'Yes' : 'No'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Created:</label>
+                  <span>{new Date(selectedDataset.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="detail-row">
+                  <label>Last Modified:</label>
+                  <span>{new Date(selectedDataset.lastModified).toLocaleDateString()}</span>
+                </div>
+                {selectedDataset.tags && selectedDataset.tags.length > 0 && (
+                  <div className="detail-row">
+                    <label>Tags:</label>
+                    <div className="tags">
+                      {selectedDataset.tags.map((tag, index) => (
+                        <span key={index} className="tag">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dataset Edit Modal */}
+      {showDatasetEditModal && editingDataset && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Edit Dataset</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowDatasetEditModal(false);
+                  setEditingDataset(null);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedData = {
+                  name: formData.get('name'),
+                  description: formData.get('description'),
+                  isPublic: formData.get('isPublic') === 'true',
+                  tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : []
+                };
+                handleUpdateDataset(editingDataset._id, updatedData);
+              }}>
+                <div className="form-group">
+                  <label htmlFor="name">Dataset Name:</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    defaultValue={editingDataset.name}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="description">Description:</label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingDataset.description || ''}
+                    rows="3"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="isPublic">Public:</label>
+                  <select
+                    id="isPublic"
+                    name="isPublic"
+                    defaultValue={editingDataset.isPublic ? 'true' : 'false'}
+                  >
+                    <option value="false">Private</option>
+                    <option value="true">Public</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tags">Tags (comma-separated):</label>
+                  <input
+                    type="text"
+                    id="tags"
+                    name="tags"
+                    defaultValue={editingDataset.tags ? editingDataset.tags.join(', ') : ''}
+                    placeholder="e.g., nlp, chatbot, ai"
+                  />
+                </div>
+                <div className="form-actions">
+                  <button type="button" onClick={() => {
+                    setShowDatasetEditModal(false);
+                    setEditingDataset(null);
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="submit">Update Dataset</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

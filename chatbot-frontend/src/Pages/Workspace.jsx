@@ -81,7 +81,29 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
         if (Array.isArray(list)) setSamples(list)
       })
       .catch(() => {})
+    
+    // Load user's workspaces on component mount
+    loadWorkspaces()
   }, [])
+
+  const loadWorkspaces = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get('http://localhost:3001/api/training/workspaces', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.data.workspaces) {
+        setWorkspaces(response.data.workspaces)
+      }
+    } catch (error) {
+      console.error('Error loading workspaces:', error)
+      // Don't show alert for this as it's a background operation
+    }
+  }
 
   useEffect(() => {
     setSuggested(suggestIntents(utterance))
@@ -108,49 +130,56 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
         }
       })
 
-      const d = new Date()
-      const createdAt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      const newWorkspace = { 
-        id: response.data.workspace.id, 
-        name, 
-        createdAt,
+      // Reload workspaces to get the latest data from server
+      await loadWorkspaces()
+      
+      // Find and select the newly created workspace
+      const newWorkspace = workspaces.find(w => w.name === name) || {
+        id: response.data.workspace.id,
+        name: name,
+        createdAt: response.data.workspace.createdAt.split('T')[0],
         projectId: response.data.project.id
       }
-      setWorkspaces([newWorkspace, ...workspaces])
       setSelectedWorkspace(newWorkspace)
       setNewWs('')
       alert('Workspace and project created successfully')
     } catch (error) {
       console.error('Workspace creation error:', error)
-      alert('Failed to create workspace. Please try again.')
+      const errorMessage = error.response?.data?.message || 'Failed to create workspace. Please try again.'
+      alert(errorMessage)
     }
   }
 
   const deleteWorkspace = async (id, name) => {
-    const ok = confirm(`Delete workspace "${name}"? This cannot be undone.`)
+    const ok = confirm(`Delete workspace "${name}"? This will permanently delete the workspace and all associated data. This cannot be undone.`)
     if (!ok) return
 
     try {
       const token = localStorage.getItem('token')
-      const workspace = workspaces.find(w => w.id === id)
       
-      if (workspace?.projectId) {
-        await axios.delete(`http://localhost:3001/api/admin/projects/${workspace.projectId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-      }
+      await axios.delete(`http://localhost:3001/api/training/workspace/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
-      setWorkspaces(prev => prev.filter(w => w.id !== id))
+      // Reload workspaces to get the updated list from server
+      await loadWorkspaces()
+      
+      // Clear selection if the deleted workspace was selected
       if (selectedWorkspace?.id === id) {
         setSelectedWorkspace(null)
+        setModelInfo(null)
+        setPredictionResult(null)
+        setTrainingStatus('')
       }
-      alert('Workspace and project deleted successfully')
+      
+      alert('Workspace and all associated data deleted successfully')
     } catch (error) {
       console.error('Workspace deletion error:', error)
-      alert('Failed to delete workspace. Please try again.')
+      const errorMessage = error.response?.data?.message || 'Failed to delete workspace. Please try again.'
+      alert(errorMessage)
     }
   }
 
@@ -310,8 +339,27 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
                 <div className="ws-item-meta" onClick={() => selectWorkspace(w)}>
                   <span className="ws-name">{w.name}</span>
                   <span className="ws-date">Created: {w.createdAt}</span>
+                  {w.status && (
+                    <span className={`ws-status ws-status-${w.status}`}>
+                      {w.status.charAt(0).toUpperCase() + w.status.slice(1)}
+                    </span>
+                  )}
+                  {w.performance?.accuracy && (
+                    <span className="ws-accuracy">
+                      Accuracy: {(w.performance.accuracy * 100).toFixed(1)}%
+                    </span>
+                  )}
                 </div>
-                <button className="ws-delete" onClick={() => deleteWorkspace(w.id, w.name)}>Delete</button>
+                <button 
+                  className="ws-delete" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteWorkspace(w.id, w.name)
+                  }}
+                  title="Delete workspace and all associated data"
+                >
+                  Delete
+                </button>
               </li>
             ))}
             {workspaces.length === 0 && (
@@ -360,16 +408,16 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
               <FiGitBranch /> Versioning
             </button>
             <button 
-              className={`ws-tab ${activeTab === 'feedback' ? 'active' : ''}`}
-              onClick={() => onPageChange('feedback')}
-            >
-              <FiMessageCircle /> Feedback
-            </button>
-            <button 
               className={`ws-tab ${activeTab === 'active-learning' ? 'active' : ''}`}
               onClick={() => onPageChange('active-learning')}
             >
               <FiZap /> Active Learning
+            </button>
+            <button 
+              className={`ws-tab ${activeTab === 'feedback' ? 'active' : ''}`}
+              onClick={() => onPageChange('feedback')}
+            >
+              <FiMessageCircle /> Feedback
             </button>
             {user?.role === 'admin' && (
               <button 

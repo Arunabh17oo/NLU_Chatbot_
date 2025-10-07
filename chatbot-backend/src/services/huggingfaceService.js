@@ -92,7 +92,7 @@ class HuggingFaceService {
         alternatives: prediction.alternatives,
         workspaceId,
         modelId: modelInfo.id,
-        isUncertain: uncertaintyScore > 0.3 // Threshold for uncertainty
+        isUncertain: uncertaintyScore > 0.65 // Threshold for uncertainty (65%)
       };
 
       console.log(`✅ Prediction: ${prediction.intent} (${(prediction.confidence * 100).toFixed(1)}%)`);
@@ -257,6 +257,71 @@ class HuggingFaceService {
    */
   listModels() {
     return Array.from(this.trainedModels.values());
+  }
+
+  /**
+   * Retrain model with correct intent for a specific text
+   * @param {string} text - Input text
+   * @param {string} correctIntent - Correct intent from feedback
+   * @param {string} workspaceId - Workspace identifier
+   * @returns {Promise<Object>} - Retraining result
+   */
+  async retrainModelWithCorrectIntent(text, correctIntent, workspaceId) {
+    try {
+      const modelInfo = this.trainedModels.get(workspaceId);
+      
+      if (!modelInfo) {
+        throw new Error(`No trained model found for workspace: ${workspaceId}`);
+      }
+
+      console.log(`🔄 Retraining model for: "${text}" with correct intent: "${correctIntent}"`);
+
+      // Add the correct example to training data
+      const newExample = {
+        text: text,
+        intent: correctIntent
+      };
+
+      // Update the training data
+      if (!modelInfo.trainingData) {
+        modelInfo.trainingData = [];
+      }
+
+      // Check if this exact text-intent combination already exists
+      const existingIndex = modelInfo.trainingData.findIndex(
+        item => item.text === text && item.intent === correctIntent
+      );
+
+      if (existingIndex === -1) {
+        // Add new example
+        modelInfo.trainingData.push(newExample);
+        console.log(`✅ Added new training example: "${text}" -> "${correctIntent}"`);
+      } else {
+        console.log(`ℹ️ Training example already exists: "${text}" -> "${correctIntent}"`);
+      }
+
+      // Update the model info
+      modelInfo.lastRetrained = new Date();
+      modelInfo.retrainCount = (modelInfo.retrainCount || 0) + 1;
+
+      // Save updated model info
+      this.trainedModels.set(workspaceId, modelInfo);
+
+      console.log(`🎯 Model retrained successfully for workspace: ${workspaceId}`);
+      console.log(`📊 Total training examples: ${modelInfo.trainingData.length}`);
+
+      return {
+        success: true,
+        text: text,
+        correctIntent: correctIntent,
+        totalExamples: modelInfo.trainingData.length,
+        retrainedAt: modelInfo.lastRetrained
+      };
+
+    } catch (error) {
+      console.error('❌ Model retraining failed:', error.message);
+      throw new Error(`Model retraining failed: ${error.message}`);
+    }
   }
 
   /**

@@ -11,6 +11,38 @@ import { Project } from '../models/Project.js';
 
 const router = express.Router();
 
+// GET /api/training/workspaces - Get all workspaces for the current user
+router.get('/workspaces', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const projects = await Project.find({ 
+      ownerId: req.user._id, 
+      isActive: true 
+    }).select('name description workspaceId createdAt status currentModelVersion performance').sort({ createdAt: -1 });
+
+    const workspaces = projects.map(project => ({
+      id: project.workspaceId,
+      name: project.name,
+      description: project.description,
+      createdAt: project.createdAt.toISOString().split('T')[0], // Format as YYYY-MM-DD
+      projectId: project._id,
+      status: project.status,
+      currentModelVersion: project.currentModelVersion,
+      performance: project.performance
+    }));
+
+    res.json({
+      message: 'Workspaces retrieved successfully',
+      workspaces
+    });
+  } catch (error) {
+    console.error('Workspace fetch error:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch workspaces',
+      error: error.message 
+    });
+  }
+});
+
 // POST /api/training/workspace - Create a new workspace and project
 router.post('/workspace', requireAuth, requireApproval, async (req, res) => {
   try {
@@ -18,6 +50,17 @@ router.post('/workspace', requireAuth, requireApproval, async (req, res) => {
 
     if (!name) {
       return res.status(400).json({ message: 'Workspace name is required' });
+    }
+
+    // Check if workspace name already exists for this user
+    const existingProject = await Project.findOne({ 
+      ownerId: req.user._id, 
+      name: name,
+      isActive: true 
+    });
+    
+    if (existingProject) {
+      return res.status(400).json({ message: 'Workspace with this name already exists' });
     }
 
     const workspaceId = String(Date.now());
@@ -49,6 +92,53 @@ router.post('/workspace', requireAuth, requireApproval, async (req, res) => {
     console.error('Workspace creation error:', error);
     res.status(500).json({ 
       message: 'Failed to create workspace',
+      error: error.message 
+    });
+  }
+});
+
+// DELETE /api/training/workspace/:workspaceId - Delete a workspace and its associated project
+router.delete('/workspace/:workspaceId', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+
+    // Find the project associated with this workspace
+    const project = await Project.findOne({ 
+      workspaceId: workspaceId, 
+      ownerId: req.user._id,
+      isActive: true 
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: 'Workspace not found' });
+    }
+
+    // Delete associated datasets
+    if (project.datasetIds && project.datasetIds.length > 0) {
+      await Dataset.deleteMany({ 
+        _id: { $in: project.datasetIds },
+        ownerId: req.user._id 
+      });
+    }
+
+    // Delete the project (which effectively deletes the workspace)
+    await Project.findByIdAndDelete(project._id);
+
+    // Delete any associated models
+    try {
+      await huggingfaceService.deleteModel(workspaceId);
+    } catch (modelError) {
+      console.log('No model to delete for workspace:', workspaceId);
+    }
+
+    res.json({
+      message: 'Workspace and associated data deleted successfully',
+      workspaceId
+    });
+  } catch (error) {
+    console.error('Workspace deletion error:', error);
+    res.status(500).json({ 
+      message: 'Failed to delete workspace',
       error: error.message 
     });
   }

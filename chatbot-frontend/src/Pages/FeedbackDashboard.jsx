@@ -20,8 +20,8 @@ const FeedbackDashboard = ({ onBack, user }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('pending');
+  const [filterType, setFilterType] = useState('correction');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
@@ -40,8 +40,8 @@ const FeedbackDashboard = ({ onBack, user }) => {
       const params = new URLSearchParams({
         page: currentPage,
         limit: 10,
-        status: filterStatus !== 'all' ? filterStatus : undefined,
-        feedbackType: filterType !== 'all' ? filterType : undefined
+        status: filterStatus,
+        feedbackType: filterType
       });
 
       const response = await fetch(`http://localhost:3001/api/feedback/user?${params}`, {
@@ -126,7 +126,12 @@ const FeedbackDashboard = ({ onBack, user }) => {
   };
 
   const handleStatClick = (status) => {
-    setFilterStatus(status);
+    if (status === 'all') {
+      // If "all" is clicked, show all statuses by resetting to pending
+      setFilterStatus('pending');
+    } else {
+      setFilterStatus(status);
+    }
     setCurrentPage(1); // Reset to first page when filtering
   };
 
@@ -135,7 +140,7 @@ const FeedbackDashboard = ({ onBack, user }) => {
       {stats && (
         <div className="stats-grid">
           <div 
-            className={`stat-card ${filterStatus === 'all' ? 'active' : ''}`}
+            className={`stat-card ${filterStatus === 'pending' ? 'active' : ''}`}
             onClick={() => handleStatClick('all')}
             style={{ cursor: 'pointer' }}
           >
@@ -213,9 +218,7 @@ const FeedbackDashboard = ({ onBack, user }) => {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="filter-select"
           >
-            <option value="all">All Status</option>
             <option value="pending">Pending</option>
-            <option value="reviewed">Reviewed</option>
             <option value="applied">Applied</option>
             <option value="rejected">Rejected</option>
           </select>
@@ -224,7 +227,6 @@ const FeedbackDashboard = ({ onBack, user }) => {
             onChange={(e) => setFilterType(e.target.value)}
             className="filter-select"
           >
-            <option value="all">All Types</option>
             <option value="correction">Correction</option>
             <option value="suggestion">Suggestion</option>
             <option value="complaint">Complaint</option>

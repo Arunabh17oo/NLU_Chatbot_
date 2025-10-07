@@ -1,65 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import './ActiveLearningDashboard.css';
 import { 
-  FaBrain, 
-  FaCheck, 
-  FaTimes, 
-  FaEye, 
-  FaSearch, 
-  FaFilter,
   FaArrowLeft,
-  FaExclamationTriangle,
+  FaBrain,
   FaClock,
   FaCheckCircle,
-  FaEdit,
-  FaTrash,
+  FaExclamationTriangle,
+  FaQuestionCircle,
+  FaLightbulb,
   FaSort,
   FaSortUp,
   FaSortDown,
-  FaQuestionCircle,
-  FaLightbulb
+  FaEye,
+  FaEdit,
+  FaTrash,
+  FaSync,
+  FaCog
 } from 'react-icons/fa';
 
 const ActiveLearningDashboard = ({ onBack, user }) => {
   const [samples, setSamples] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending');
-  const [filterPriority, setFilterPriority] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [selectedSample, setSelectedSample] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [stats, setStats] = useState(null);
-  const [sortBy, setSortBy] = useState('uncertaintyScore');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [batchMode, setBatchMode] = useState(false);
-  const [selectedSamples, setSelectedSamples] = useState(new Set());
-  const [annotationForm, setAnnotationForm] = useState({
-    correctIntent: '',
-    annotationNotes: '',
-    priority: 'medium'
-  });
+  const [retrainingSample, setRetrainingSample] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedWorkspace, setSelectedWorkspace] = useState(null);
 
   useEffect(() => {
-    fetchSamples();
-    fetchStats();
-  }, [currentPage, searchTerm, filterStatus, filterPriority, sortBy, sortOrder]);
+    fetchUncertaintySamples();
+  }, [currentPage, sortBy, sortOrder]);
 
-  const fetchSamples = async () => {
+  const fetchUncertaintySamples = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: currentPage,
         limit: 10,
-        status: filterStatus !== 'all' ? filterStatus : undefined,
-        priority: filterPriority !== 'all' ? filterPriority : undefined,
         sortBy,
         sortOrder
       });
 
-      const response = await fetch(`http://localhost:3001/api/active-learning/queue?${params}`, {
+      const response = await fetch(`http://localhost:3001/api/active-learning/uncertainty-history?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -72,115 +60,24 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
         setTotalPages(data.totalPages);
       }
     } catch (error) {
-      console.error('Error fetching samples:', error);
+      console.error('Error fetching uncertainty samples:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/active-learning/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching active learning stats:', error);
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
     }
   };
 
-  const handleViewSample = (sample) => {
-    setSelectedSample(sample);
-    setAnnotationForm({
-      correctIntent: sample.correctIntent || '',
-      annotationNotes: sample.annotationNotes || '',
-      priority: sample.priority || 'medium'
-    });
-    setShowModal(true);
-  };
-
-  const handleAnnotateSample = async (sampleId, formData) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/active-learning/${sampleId}/annotate`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setShowModal(false);
-        fetchSamples();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error annotating sample:', error);
-    }
-  };
-
-  const handleBatchAnnotate = async () => {
-    if (selectedSamples.size === 0) return;
-
-    const annotations = Array.from(selectedSamples).map(sampleId => ({
-      sampleId,
-      correctIntent: annotationForm.correctIntent,
-      annotationNotes: annotationForm.annotationNotes,
-      priority: annotationForm.priority
-    }));
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/active-learning/batch-annotate', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ annotations })
-      });
-
-      if (response.ok) {
-        setSelectedSamples(new Set());
-        setBatchMode(false);
-        fetchSamples();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error batch annotating:', error);
-    }
-  };
-
-  const handleDeleteSample = async (sampleId) => {
-    if (window.confirm('Are you sure you want to delete this sample?')) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/active-learning/${sampleId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          fetchSamples();
-          fetchStats();
-        }
-      } catch (error) {
-        console.error('Error deleting sample:', error);
-      }
-    }
+  const getSortIcon = (field) => {
+    if (sortBy !== field) return <FaSort />;
+    return sortOrder === 'asc' ? <FaSortUp /> : <FaSortDown />;
   };
 
   const getStatusIcon = (status) => {
@@ -192,7 +89,7 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
       case 'annotated':
         return <FaCheckCircle className="status-icon annotated" />;
       case 'retrained':
-        return <FaCheck className="status-icon retrained" />;
+        return <FaCheckCircle className="status-icon retrained" />;
       default:
         return <FaClock className="status-icon" />;
     }
@@ -223,308 +120,282 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
     });
   };
 
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('desc');
+  const handleViewSample = (sample) => {
+    setSelectedSample(sample);
+    setShowModal(true);
+  };
+
+  const handleDeleteSample = async (sampleId) => {
+    if (window.confirm('Are you sure you want to delete this sample?')) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/active-learning/${sampleId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          fetchUncertaintySamples();
+        }
+      } catch (error) {
+        console.error('Error deleting sample:', error);
+      }
     }
   };
 
-  const getSortIcon = (field) => {
-    if (sortBy !== field) return <FaSort />;
-    return sortOrder === 'asc' ? <FaSortUp /> : <FaSortDown />;
+  const fetchIntentSuggestions = async (text, workspaceId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/feedback/suggestions/${encodeURIComponent(text)}?workspaceId=${workspaceId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.suggestions);
+        setShowSuggestions(true);
+      } else {
+        console.error('Failed to fetch suggestions');
+        setSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching intent suggestions:', error);
+      setSuggestions([]);
+    }
   };
 
-  const renderStats = () => (
-    <div className="active-learning-stats">
-      {stats && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FaBrain />
-            </div>
-            <div className="stat-info">
-              <h3>{stats.total}</h3>
-              <p>Total Samples</p>
-            </div>
-          </div>
-          
-          <div className="stat-card pending">
-            <div className="stat-icon">
-              <FaClock />
-            </div>
-            <div className="stat-info">
-              <h3>{stats.pending}</h3>
-              <p>Pending Review</p>
-            </div>
-          </div>
-          
-          <div className="stat-card annotated">
-            <div className="stat-icon">
-              <FaCheckCircle />
-            </div>
-            <div className="stat-info">
-              <h3>{stats.annotated}</h3>
-              <p>Annotated</p>
-            </div>
-          </div>
-          
-          <div className="stat-card retrained">
-            <div className="stat-icon">
-              <FaCheck />
-            </div>
-            <div className="stat-info">
-              <h3>{stats.retrained}</h3>
-              <p>Retrained</p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  const handleRetrainModel = async (sample) => {
+    setRetrainingSample(sample);
+    setSelectedWorkspace(sample.workspaceId);
+    await fetchIntentSuggestions(sample.text, sample.workspaceId);
+  };
 
-  const renderSamplesList = () => (
-    <div className="samples-list">
-      <div className="list-header">
-        <h2>Uncertain Samples Queue</h2>
-        <div className="list-controls">
-          <div className="search-filters">
-            <div className="search-box">
-              <FaSearch />
-              <input
-                type="text"
-                placeholder="Search samples..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="reviewed">Reviewed</option>
-              <option value="annotated">Annotated</option>
-              <option value="retrained">Retrained</option>
-            </select>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Priorities</option>
-              <option value="urgent">Urgent</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-          <div className="batch-controls">
-            <button
-              className={`batch-btn ${batchMode ? 'active' : ''}`}
-              onClick={() => setBatchMode(!batchMode)}
-            >
-              <FaEdit />
-              Batch Mode
-            </button>
-            {batchMode && selectedSamples.size > 0 && (
-              <button
-                className="batch-annotate-btn"
-                onClick={handleBatchAnnotate}
-              >
-                Annotate Selected ({selectedSamples.size})
-              </button>
-            )}
-          </div>
-        </div>
+  const executeRetrain = async (correctIntent) => {
+    if (!retrainingSample || !selectedWorkspace) return;
 
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/active-learning/${retrainingSample._id}/retrain`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          correctIntent: correctIntent,
+          workspaceId: selectedWorkspace
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Model retrained successfully! ${data.message}`);
+        fetchUncertaintySamples(); // Refresh the list
+        setShowSuggestions(false);
+        setRetrainingSample(null);
+        setSuggestions([]);
+      } else {
+        const errorData = await response.json();
+        alert(`Retraining failed: ${errorData.message}`);
+      }
+    } catch (error) {
+      console.error('Error retraining model:', error);
+      alert('Failed to retrain model. Please try again.');
+    }
+  };
+
+  const renderUncertaintyHistory = () => (
+    <div className="uncertainty-samples-history">
+      <div className="history-header">
+        <h2>Uncertainty Samples History</h2>
+        <p>All uncertain predictions with uncertainty > 65% collected for review</p>
       </div>
 
       {loading ? (
-        <div className="loading">Loading samples...</div>
+        <div className="loading">Loading uncertainty samples...</div>
       ) : (
         <div className="samples-container">
-          <div className="table-container">
-            <table className="samples-table">
-              <thead>
-                <tr>
-                  {batchMode && <th>Select</th>}
-                  <th>
-                    <button
-                      className="sort-btn"
-                      onClick={() => handleSort('text')}
-                    >
-                      Text {getSortIcon('text')}
-                    </button>
-                  </th>
-                  <th>
-                    <button
-                      className="sort-btn"
-                      onClick={() => handleSort('predictedIntent')}
-                    >
-                      Predicted Intent {getSortIcon('predictedIntent')}
-                    </button>
-                  </th>
-                  <th>
-                    <button
-                      className="sort-btn"
-                      onClick={() => handleSort('confidence')}
-                    >
-                      Confidence {getSortIcon('confidence')}
-                    </button>
-                  </th>
-                  <th>
-                    <button
-                      className="sort-btn"
-                      onClick={() => handleSort('uncertaintyScore')}
-                    >
-                      Uncertainty {getSortIcon('uncertaintyScore')}
-                    </button>
-                  </th>
-                  <th>
-                    <button
-                      className="sort-btn"
-                      onClick={() => handleSort('priority')}
-                    >
-                      Priority {getSortIcon('priority')}
-                    </button>
-                  </th>
-                  <th>
-                    <button
-                      className="sort-btn"
-                      onClick={() => handleSort('status')}
-                    >
-                      Status {getSortIcon('status')}
-                    </button>
-                  </th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {samples.map(sample => (
-                  <tr key={sample._id} className={selectedSamples.has(sample._id) ? 'selected' : ''}>
-                    {batchMode && (
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedSamples.has(sample._id)}
-                          onChange={(e) => {
-                            const newSelected = new Set(selectedSamples);
-                            if (e.target.checked) {
-                              newSelected.add(sample._id);
-                            } else {
-                              newSelected.delete(sample._id);
-                            }
-                            setSelectedSamples(newSelected);
-                          }}
-                        />
-                      </td>
-                    )}
-                    <td>
-                      <div className="sample-text">
-                        {sample.text.length > 50 
-                          ? `${sample.text.substring(0, 50)}...` 
-                          : sample.text
-                        }
-                      </div>
-                    </td>
-                    <td>
-                      <span className="intent-badge predicted">
-                        {sample.predictedIntent}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="confidence-bar">
-                        <div 
-                          className="confidence-fill"
-                          style={{ width: `${sample.confidence * 100}%` }}
-                        />
-                        <span className="confidence-text">
-                          {(sample.confidence * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="uncertainty-bar">
-                        <div 
-                          className="uncertainty-fill"
-                          style={{ width: `${sample.uncertaintyScore * 100}%` }}
-                        />
-                        <span className="uncertainty-text">
-                          {(sample.uncertaintyScore * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="priority-cell">
-                        {getPriorityIcon(sample.priority)}
-                        <span className="priority-text">{sample.priority}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="status-cell">
-                        {getStatusIcon(sample.status)}
-                        <span className="status-text">{sample.status}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="view-btn"
-                          onClick={() => handleViewSample(sample)}
-                          title="View Details"
-                        >
-                          <FaEye />
-                        </button>
-                        <button
-                          className="edit-btn"
-                          onClick={() => handleViewSample(sample)}
-                          title="Annotate"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDeleteSample(sample._id)}
-                          title="Delete"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {samples.length === 0 && (
+          {samples.length === 0 ? (
             <div className="empty-state">
               <FaBrain className="empty-icon" />
               <h3>No uncertain samples found</h3>
-              <p>All samples have been reviewed or there are no uncertain predictions.</p>
+              <p>No uncertain predictions have been collected yet.</p>
             </div>
-          )}
-          
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </button>
-              <span>Page {currentPage} of {totalPages}</span>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </button>
+          ) : (
+            <div className="samples-list">
+              <div className="table-container">
+                <table className="samples-table">
+                  <thead>
+                    <tr>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('text')}
+                        >
+                          Text {getSortIcon('text')}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('predictedIntent')}
+                        >
+                          Predicted Intent {getSortIcon('predictedIntent')}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('confidence')}
+                        >
+                          Confidence {getSortIcon('confidence')}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('uncertaintyScore')}
+                        >
+                          Uncertainty {getSortIcon('uncertaintyScore')}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('priority')}
+                        >
+                          Priority {getSortIcon('priority')}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('status')}
+                        >
+                          Status {getSortIcon('status')}
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          className="sort-btn"
+                          onClick={() => handleSort('createdAt')}
+                        >
+                          Date {getSortIcon('createdAt')}
+                        </button>
+                      </th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {samples.map(sample => (
+                      <tr key={sample._id}>
+                        <td>
+                          <div className="sample-text">
+                            {sample.text.length > 50 
+                              ? `${sample.text.substring(0, 50)}...` 
+                              : sample.text
+                            }
+                          </div>
+                        </td>
+                        <td>
+                          <span className="intent-badge predicted">
+                            {sample.predictedIntent}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="confidence-bar">
+                            <div 
+                              className="confidence-fill"
+                              style={{ width: `${sample.confidence * 100}%` }}
+                            />
+                            <span className="confidence-text">
+                              {(sample.confidence * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="uncertainty-bar">
+                            <div 
+                              className="uncertainty-fill"
+                              style={{ width: `${sample.uncertaintyScore * 100}%` }}
+                            />
+                            <span className="uncertainty-text">
+                              {(sample.uncertaintyScore * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="priority-cell">
+                            {getPriorityIcon(sample.priority)}
+                            <span className="priority-text">{sample.priority}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="status-cell">
+                            {getStatusIcon(sample.status)}
+                            <span className="status-text">{sample.status}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="date-cell">
+                            {formatDate(sample.createdAt)}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="view-btn"
+                              onClick={() => handleViewSample(sample)}
+                              title="View Details"
+                            >
+                              <FaEye />
+                            </button>
+                            <button
+                              className="retrain-btn"
+                              onClick={() => handleRetrainModel(sample)}
+                              title="Re-train Model"
+                              disabled={sample.status === 'retrained'}
+                            >
+                              <FaSync />
+                            </button>
+                            <button
+                              className="delete-btn"
+                              onClick={() => handleDeleteSample(sample._id)}
+                              title="Delete"
+                            >
+                              <FaTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+                  <span>Page {currentPage} of {totalPages}</span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -537,12 +408,12 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
       <div className="modal-overlay" onClick={() => setShowModal(false)}>
         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-            <h3>Annotate Sample</h3>
+            <h3>Sample Details</h3>
             <button
               className="close-btn"
               onClick={() => setShowModal(false)}
             >
-              <FaTimes />
+              ×
             </button>
           </div>
           
@@ -554,71 +425,107 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
                 <p><strong>Predicted Intent:</strong> {selectedSample.predictedIntent}</p>
                 <p><strong>Confidence:</strong> {(selectedSample.confidence * 100).toFixed(1)}%</p>
                 <p><strong>Uncertainty Score:</strong> {(selectedSample.uncertaintyScore * 100).toFixed(1)}%</p>
-              </div>
-            </div>
-            
-            <div className="annotation-form">
-              <h4>Annotation</h4>
-              <div className="form-group">
-                <label>Correct Intent:</label>
-                <input
-                  type="text"
-                  value={annotationForm.correctIntent}
-                  onChange={(e) => setAnnotationForm(prev => ({
-                    ...prev,
-                    correctIntent: e.target.value
-                  }))}
-                  placeholder="Enter the correct intent"
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Priority:</label>
-                <select
-                  value={annotationForm.priority}
-                  onChange={(e) => setAnnotationForm(prev => ({
-                    ...prev,
-                    priority: e.target.value
-                  }))}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>Notes (Optional):</label>
-                <textarea
-                  value={annotationForm.annotationNotes}
-                  onChange={(e) => setAnnotationForm(prev => ({
-                    ...prev,
-                    annotationNotes: e.target.value
-                  }))}
-                  placeholder="Add any additional notes about this annotation"
-                  rows="3"
-                />
+                <p><strong>Priority:</strong> {selectedSample.priority}</p>
+                <p><strong>Status:</strong> {selectedSample.status}</p>
+                <p><strong>Created:</strong> {formatDate(selectedSample.createdAt)}</p>
+                {selectedSample.correctIntent && (
+                  <p><strong>Corrected Intent:</strong> {selectedSample.correctIntent}</p>
+                )}
+                {selectedSample.annotationNotes && (
+                  <p><strong>Notes:</strong> {selectedSample.annotationNotes}</p>
+                )}
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    )
+  );
+
+  const renderSuggestionsModal = () => (
+    showSuggestions && retrainingSample && (
+      <div className="modal-overlay" onClick={() => setShowSuggestions(false)}>
+        <div className="modal-content suggestions-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>Re-train Model</h3>
+            <button
+              className="close-btn"
+              onClick={() => setShowSuggestions(false)}
+            >
+              ×
+            </button>
+          </div>
           
-          <div className="modal-footer">
-            <button
-              className="cancel-btn"
-              onClick={() => setShowModal(false)}
-            >
-              Cancel
-            </button>
-            <button
-              className="submit-btn"
-              onClick={() => handleAnnotateSample(selectedSample._id, annotationForm)}
-              disabled={!annotationForm.correctIntent}
-            >
-              <FaCheck />
-              Submit Annotation
-            </button>
+          <div className="modal-body">
+            <div className="retrain-section">
+              <h4>Sample to Retrain:</h4>
+              <div className="sample-info">
+                <p><strong>Text:</strong> "{retrainingSample.text}"</p>
+                <p><strong>Current Prediction:</strong> {retrainingSample.predictedIntent}</p>
+                <p><strong>Uncertainty:</strong> {(retrainingSample.uncertaintyScore * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+
+            <div className="suggestions-section">
+              <h4>Correct Intent Suggestions from Feedback:</h4>
+              {suggestions.length > 0 ? (
+                <div className="suggestions-list">
+                  {suggestions.map((suggestion, index) => (
+                    <div key={index} className="suggestion-item">
+                      <div className="suggestion-header">
+                        <span className="intent-name">{suggestion.intent}</span>
+                        <span className="confidence-badge">
+                          {(suggestion.confidence * 100).toFixed(0)}% confidence
+                        </span>
+                        <span className="count-badge">
+                          {suggestion.count} feedback{suggestion.count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="suggestion-examples">
+                        <strong>Examples:</strong>
+                        {suggestion.examples.slice(0, 3).map((example, idx) => (
+                          <div key={idx} className="example-item">
+                            "{example.text}" - {example.correctedBy} ({formatDate(example.correctedAt)})
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        className="select-intent-btn"
+                        onClick={() => executeRetrain(suggestion.intent)}
+                      >
+                        <FaCog /> Use This Intent
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-suggestions">
+                  <p>No feedback suggestions found for this text.</p>
+                  <p>You can manually enter the correct intent:</p>
+                  <div className="manual-input">
+                    <input
+                      type="text"
+                      placeholder="Enter correct intent..."
+                      id="manualIntent"
+                      className="intent-input"
+                    />
+                    <button
+                      className="manual-retrain-btn"
+                      onClick={() => {
+                        const manualIntent = document.getElementById('manualIntent').value;
+                        if (manualIntent.trim()) {
+                          executeRetrain(manualIntent.trim());
+                        } else {
+                          alert('Please enter a correct intent');
+                        }
+                      }}
+                    >
+                      <FaSync /> Retrain with Manual Intent
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -635,12 +542,11 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
         <h1>Active Learning Dashboard</h1>
       </div>
       
-      {renderStats()}
-      {renderSamplesList()}
+      {renderUncertaintyHistory()}
       {renderModal()}
+      {renderSuggestionsModal()}
     </div>
   );
 };
 
 export default ActiveLearningDashboard;
-

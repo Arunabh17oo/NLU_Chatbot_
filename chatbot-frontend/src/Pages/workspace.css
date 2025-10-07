@@ -69,6 +69,31 @@
 .ws-item.selected { background: #e6fffa; border-color: #38b2ac; }
 .ws-item-meta { cursor: pointer; flex: 1; }
 .ws-item-meta { display: grid; gap: 0.2rem; }
+.ws-name { font-weight: 600; color: #2d3748; }
+.ws-date { font-size: 0.85rem; color: #718096; }
+.ws-status { 
+  font-size: 0.75rem; 
+  padding: 0.2rem 0.4rem; 
+  border-radius: 12px; 
+  font-weight: 600; 
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+.ws-status-draft { background: #fef5e7; color: #d69e2e; }
+.ws-status-training { background: #e6fffa; color: #38b2ac; }
+.ws-status-trained { background: #f0fff4; color: #38a169; }
+.ws-status-deployed { background: #ebf8ff; color: #3182ce; }
+.ws-status-archived { background: #f7fafc; color: #718096; }
+.ws-accuracy { 
+  font-size: 0.8rem; 
+  color: #4a5568; 
+  font-weight: 500;
+  background: #f7fafc;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  width: fit-content;
+}
 .ws-delete { background: #fed7d7; color: #9b2c2c; border: 1px solid #feb2b2; border-radius: 8px; padding: 0.35rem 0.6rem; cursor: pointer; }
 .ws-delete:hover { background: #feb2b2; }
 .ws-create { margin-top: 0.8rem; display: grid; gap: 0.5rem; }

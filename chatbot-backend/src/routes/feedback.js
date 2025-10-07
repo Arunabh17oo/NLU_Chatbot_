@@ -210,4 +210,64 @@ router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/feedback/suggestions/:text - Get correct intent suggestions for a text
+router.get('/suggestions/:text', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const { text } = req.params;
+    const { workspaceId } = req.query;
+
+    if (!workspaceId) {
+      return res.status(400).json({ message: 'workspaceId is required' });
+    }
+
+    // Find feedback entries that match the text and have corrected intents
+    const feedbacks = await Feedback.find({
+      originalText: { $regex: text, $options: 'i' }, // Case-insensitive match
+      workspaceId: workspaceId,
+      correctedIntent: { $exists: true, $ne: null },
+      status: { $in: ['reviewed', 'applied'] }
+    })
+    .populate('userId', 'username')
+    .sort({ createdAt: -1 })
+    .limit(10);
+
+    // Group by corrected intent and count occurrences
+    const intentCounts = {};
+    feedbacks.forEach(feedback => {
+      const intent = feedback.correctedIntent;
+      if (!intentCounts[intent]) {
+        intentCounts[intent] = {
+          intent: intent,
+          count: 0,
+          confidence: 0,
+          examples: []
+        };
+      }
+      intentCounts[intent].count++;
+      intentCounts[intent].examples.push({
+        text: feedback.originalText,
+        correctedBy: feedback.userId?.username || 'Unknown',
+        correctedAt: feedback.createdAt
+      });
+    });
+
+    // Convert to array and sort by count (most frequent first)
+    const suggestions = Object.values(intentCounts)
+      .sort((a, b) => b.count - a.count)
+      .map(item => ({
+        ...item,
+        confidence: Math.min(item.count / feedbacks.length, 1) // Confidence based on frequency
+      }));
+
+    res.json({
+      text: text,
+      suggestions: suggestions,
+      totalFeedbacks: feedbacks.length
+    });
+  } catch (err) {
+    console.error('Get intent suggestions error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

@@ -268,6 +268,124 @@ router.get('/stats', requireAuth, requireApproval, async (req, res) => {
   }
 });
 
+// GET /api/active-learning/uncertainty-history - Get uncertainty samples history
+router.get('/uncertainty-history', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      workspaceId,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+    
+    const query = {};
+    
+    if (workspaceId) query.workspaceId = workspaceId;
+
+    // If not admin, only show user's samples
+    if (req.user.role !== 'admin') {
+      query.userId = req.user._id;
+    }
+
+    // Sort options
+    const sortOptions = {};
+    if (sortBy === 'uncertaintyScore') {
+      sortOptions.uncertaintyScore = sortOrder === 'asc' ? 1 : -1;
+    } else if (sortBy === 'confidence') {
+      sortOptions.confidence = sortOrder === 'asc' ? 1 : -1;
+    } else if (sortBy === 'createdAt') {
+      sortOptions.createdAt = sortOrder === 'asc' ? 1 : -1;
+    }
+
+    const samples = await ActiveLearning.find(query)
+      .populate('userId', 'username email')
+      .populate('reviewedBy', 'username email')
+      .sort(sortOptions)
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await ActiveLearning.countDocuments(query);
+
+    res.json({
+      samples,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total
+    });
+  } catch (err) {
+    console.error('Get uncertainty history error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/active-learning/:sampleId/retrain - Retrain model with correct intent
+router.post('/:sampleId/retrain', requireAuth, requireApproval, async (req, res) => {
+  try {
+    const { sampleId } = req.params;
+    const { correctIntent, workspaceId } = req.body;
+
+    if (!correctIntent || !workspaceId) {
+      return res.status(400).json({ 
+        message: 'correctIntent and workspaceId are required' 
+      });
+    }
+
+    const sample = await ActiveLearning.findById(sampleId);
+    if (!sample) {
+      return res.status(404).json({ message: 'Sample not found' });
+    }
+
+    // Check permissions
+    if (req.user.role !== 'admin' && sample.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Import HuggingFaceService dynamically
+    const { default: HuggingFaceService } = await import('../services/huggingfaceService.js');
+    const hfService = new HuggingFaceService();
+
+    try {
+      // Retrain the model with the correct intent
+      await hfService.retrainModelWithCorrectIntent(
+        sample.text,
+        correctIntent,
+        workspaceId
+      );
+
+      // Update sample status
+      sample.correctIntent = correctIntent;
+      sample.status = 'retrained';
+      sample.reviewedBy = req.user._id;
+      sample.reviewedAt = new Date();
+      sample.isRetrained = true;
+      sample.retrainedAt = new Date();
+
+      await sample.save();
+
+      res.json({
+        message: 'Model retrained successfully with correct intent',
+        sample: {
+          id: sample._id,
+          text: sample.text,
+          correctIntent: sample.correctIntent,
+          status: sample.status,
+          retrainedAt: sample.retrainedAt
+        }
+      });
+    } catch (retrainError) {
+      console.error('Model retraining error:', retrainError);
+      res.status(500).json({ 
+        message: 'Model retraining failed', 
+        error: retrainError.message 
+      });
+    }
+  } catch (err) {
+    console.error('Retrain sample error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // DELETE /api/active-learning/:sampleId - Delete uncertain sample
 router.delete('/:sampleId', requireAuth, requireApproval, async (req, res) => {
   try {

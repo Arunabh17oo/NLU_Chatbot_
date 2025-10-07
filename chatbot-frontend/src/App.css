@@ -64,20 +64,22 @@
   line-height: 1.6;
 }
 
-.logout-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  margin-top: 1rem;
-  transition: background 0.3s ease;
+.pending-content .logout-btn {
+  background: #667eea !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.75rem 2rem !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 1rem !important;
+  margin-top: 1rem !important;
+  transition: background 0.3s ease !important;
+  width: auto !important;
+  display: inline-block !important;
 }
 
-.logout-btn:hover {
-  background: #5a67d8;
+.pending-content .logout-btn:hover {
+  background: #5a67d8 !important;
 }
 
 /* Responsive Design */

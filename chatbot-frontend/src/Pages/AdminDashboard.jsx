@@ -33,7 +33,7 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -47,7 +47,6 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackStats, setFeedbackStats] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -60,7 +59,6 @@ const AdminDashboard = ({ onLogout, user }) => {
       fetchProjects();
     } else if (activeTab === 'feedback') {
       fetchFeedbacks();
-      fetchFeedbackStats();
     }
   }, [activeTab, currentPage, searchTerm, filterStatus]);
 
@@ -94,7 +92,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         page: currentPage,
         limit: 10,
         search: searchTerm,
-        status: filterStatus !== 'all' ? filterStatus : undefined
+        status: filterStatus
       });
 
       const response = await fetch(`http://localhost:3001/api/admin/users?${params}`, {
@@ -382,7 +380,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       const params = new URLSearchParams({
         page: currentPage,
         limit: 10,
-        status: filterStatus !== 'all' ? filterStatus : undefined
+        status: filterStatus
       });
 
       const response = await fetch(`http://localhost:3001/api/feedback/admin?${params}`, {
@@ -404,24 +402,6 @@ const AdminDashboard = ({ onLogout, user }) => {
     }
   };
 
-  const fetchFeedbackStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/feedback/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setFeedbackStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching feedback stats:', error);
-    }
-  };
 
   const handleReviewFeedback = async (feedbackId, status) => {
     try {
@@ -437,7 +417,6 @@ const AdminDashboard = ({ onLogout, user }) => {
 
       if (response.ok) {
         fetchFeedbacks(); // Refresh feedbacks list
-        fetchFeedbackStats(); // Refresh stats
         setShowFeedbackModal(false);
         setSelectedFeedback(null);
       }
@@ -857,58 +836,9 @@ const AdminDashboard = ({ onLogout, user }) => {
     </div>
   );
 
-  const renderFeedbackStats = () => (
-    <div className="feedback-stats">
-      {feedbackStats && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FaCommentAlt />
-            </div>
-            <div className="stat-info">
-              <h3>{feedbackStats.total}</h3>
-              <p>Total Feedback</p>
-            </div>
-          </div>
-          
-          <div className="stat-card pending">
-            <div className="stat-icon">
-              <FaClock />
-            </div>
-            <div className="stat-info">
-              <h3>{feedbackStats.pending}</h3>
-              <p>Pending Review</p>
-            </div>
-          </div>
-          
-          <div className="stat-card applied">
-            <div className="stat-icon">
-              <FaCheckCircle />
-            </div>
-            <div className="stat-info">
-              <h3>{feedbackStats.applied}</h3>
-              <p>Applied</p>
-            </div>
-          </div>
-          
-          <div className="stat-card rejected">
-            <div className="stat-icon">
-              <FaTimesCircle />
-            </div>
-            <div className="stat-info">
-              <h3>{feedbackStats.rejected}</h3>
-              <p>Rejected</p>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   const renderFeedback = () => (
     <div className="feedback-content">
-      {renderFeedbackStats()}
-      
       <div className="content-header">
         <h2>Review Feedback</h2>
         <div className="search-filters">
@@ -926,9 +856,7 @@ const AdminDashboard = ({ onLogout, user }) => {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="filter-select"
           >
-            <option value="all">All Status</option>
             <option value="pending">Pending</option>
-            <option value="reviewed">Reviewed</option>
             <option value="applied">Applied</option>
             <option value="rejected">Rejected</option>
           </select>

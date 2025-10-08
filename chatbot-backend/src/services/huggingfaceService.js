@@ -92,7 +92,7 @@ class HuggingFaceService {
         alternatives: prediction.alternatives,
         workspaceId,
         modelId: modelInfo.id,
-        isUncertain: uncertaintyScore > 0.65 // Threshold for uncertainty (65%)
+        isUncertain: uncertaintyScore > 0.8 // Threshold for uncertainty (80%)
       };
 
       console.log(`✅ Prediction: ${prediction.intent} (${(prediction.confidence * 100).toFixed(1)}%)`);
@@ -135,9 +135,9 @@ class HuggingFaceService {
       if (!existingSample) {
         // Determine priority based on uncertainty score
         let priority = 'medium';
-        if (uncertaintyScore > 0.7) priority = 'urgent';
-        else if (uncertaintyScore > 0.5) priority = 'high';
-        else if (uncertaintyScore < 0.2) priority = 'low';
+        if (uncertaintyScore > 0.8) priority = 'urgent';
+        else if (uncertaintyScore > 0.6) priority = 'high';
+        else if (uncertaintyScore < 0.3) priority = 'low';
 
         await ActiveLearning.create({
           userId: userId,

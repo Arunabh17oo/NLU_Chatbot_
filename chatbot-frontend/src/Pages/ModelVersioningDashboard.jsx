@@ -39,7 +39,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
 
   const fetchVersions = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `http://localhost:3001/api/model-versioning/versions/${selectedWorkspace.id}`,
         {
@@ -55,7 +55,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
 
   const fetchStatistics = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `http://localhost:3001/api/model-versioning/statistics?workspaceId=${selectedWorkspace.id}`,
         {
@@ -72,7 +72,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
   // Try to fetch model info from backend to enable version creation.
   const fetchServerModelId = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `http://localhost:3001/api/training/model-info/${selectedWorkspace.id}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
@@ -94,7 +94,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
     setIsCreatingVersion(true);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         'http://localhost:3001/api/model-versioning/create',
         {
@@ -126,7 +126,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
 
   const updateVersion = async (versionId, updates) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       await axios.put(
         `http://localhost:3001/api/model-versioning/version/${versionId}`,
         updates,
@@ -152,7 +152,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
     }
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       await axios.delete(
         `http://localhost:3001/api/model-versioning/version/${versionId}`,
         {
@@ -171,7 +171,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
 
   const exportVersion = async (versionId) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `http://localhost:3001/api/model-versioning/export/${versionId}`,
         {
@@ -204,7 +204,7 @@ export default function ModelVersioningDashboard({ selectedWorkspace, modelInfo 
     setComparisonResults(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         'http://localhost:3001/api/model-versioning/compare',
         { versionIds: selectedVersions },

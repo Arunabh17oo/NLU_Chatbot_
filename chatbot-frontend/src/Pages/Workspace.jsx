@@ -105,6 +105,30 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
     }
   }
 
+  const checkUserStatus = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://localhost:3001/api/auth/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('User status:', data.user)
+        return data.user
+      } else {
+        console.error('Failed to fetch user profile')
+        return null
+      }
+    } catch (error) {
+      console.error('Error checking user status:', error)
+      return null
+    }
+  }
+
   useEffect(() => {
     setSuggested(suggestIntents(utterance))
   }, [utterance])
@@ -222,6 +246,18 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
       return
     }
 
+    // Check user status first
+    const userStatus = await checkUserStatus()
+    if (!userStatus) {
+      alert('Failed to verify user status. Please log in again.')
+      return
+    }
+
+    if (!userStatus.isApproved) {
+      alert('Your account is not approved yet. Please wait for admin approval before training models.')
+      return
+    }
+
     setIsTraining(true)
     setTrainingStatus('Training model...')
 
@@ -230,7 +266,16 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
       formData.append('trainingData', file)
       formData.append('workspaceId', selectedWorkspace.id)
 
-      const token = localStorage.getItem('auth_token')
+      const token = localStorage.getItem('token')
+      
+      // Debug: Check if token exists
+      if (!token) {
+        alert('No authentication token found. Please log in again.')
+        return
+      }
+
+      console.log('Using token:', token.substring(0, 20) + '...') // Log first 20 chars for debugging
+
       const response = await axios.post('http://localhost:3001/api/training/upload-and-train', formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -244,7 +289,21 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
     } catch (error) {
       console.error('Training error:', error)
       setTrainingStatus('Training failed')
-      alert(error.response?.data?.message || 'Training failed')
+      
+      // More detailed error handling
+      if (error.response?.status === 401) {
+        if (error.response?.data?.message?.includes('Invalid token')) {
+          alert('Authentication failed. Please log in again.')
+          localStorage.removeItem('token')
+          window.location.reload()
+        } else if (error.response?.data?.message?.includes('not approved')) {
+          alert('Your account is not approved yet. Please wait for admin approval.')
+        } else {
+          alert('Authentication error: ' + error.response?.data?.message)
+        }
+      } else {
+        alert(error.response?.data?.message || 'Training failed')
+      }
     } finally {
       setIsTraining(false)
     }

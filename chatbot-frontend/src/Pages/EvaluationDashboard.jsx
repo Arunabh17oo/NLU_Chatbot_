@@ -34,7 +34,7 @@ export default function EvaluationDashboard({ selectedWorkspace, modelInfo }) {
 
   const fetchEvaluationHistory = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `http://localhost:3001/api/evaluation/workspace/${selectedWorkspace.id}`,
         {
@@ -75,7 +75,7 @@ export default function EvaluationDashboard({ selectedWorkspace, modelInfo }) {
       formData.append('modelId', modelInfo.modelId);
       formData.append('description', `Evaluation on ${testFile.name}`);
 
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         'http://localhost:3001/api/evaluation/evaluate',
         formData,
@@ -109,7 +109,7 @@ export default function EvaluationDashboard({ selectedWorkspace, modelInfo }) {
     setCurrentResults(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         'http://localhost:3001/api/evaluation/evaluate-holdout',
         {
@@ -138,7 +138,7 @@ export default function EvaluationDashboard({ selectedWorkspace, modelInfo }) {
 
   const exportEvaluation = async (evaluationId) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `http://localhost:3001/api/evaluation/export/${evaluationId}`,
         {
@@ -171,7 +171,7 @@ export default function EvaluationDashboard({ selectedWorkspace, modelInfo }) {
     setComparisonResults(null);
 
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         'http://localhost:3001/api/evaluation/compare',
         { evaluationIds: selectedEvaluations },

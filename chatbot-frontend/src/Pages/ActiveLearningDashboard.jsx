@@ -214,7 +214,7 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
     <div className="uncertainty-samples-history">
       <div className="history-header">
         <h2>Uncertainty Samples History</h2>
-        <p>All uncertain predictions with uncertainty > 80% collected for review</p>
+        <p>All uncertain predictions with uncertainty &gt; 80% collected for review</p>
       </div>
 
       {loading ? (

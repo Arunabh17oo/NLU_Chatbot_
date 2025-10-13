@@ -342,16 +342,24 @@ router.post('/:sampleId/retrain', requireAuth, requireApproval, async (req, res)
     }
 
     // Import HuggingFaceService dynamically
-    const { default: HuggingFaceService } = await import('../services/huggingfaceService.js');
-    const hfService = new HuggingFaceService();
+    const { default: hfService } = await import('../services/huggingfaceService.js');
 
     try {
+      console.log(`🔄 Starting retraining for sample ${sampleId}:`, {
+        text: sample.text,
+        correctIntent,
+        workspaceId,
+        userId: req.user._id
+      });
+
       // Retrain the model with the correct intent
-      await hfService.retrainModelWithCorrectIntent(
+      const retrainResult = await hfService.retrainModelWithCorrectIntent(
         sample.text,
         correctIntent,
         workspaceId
       );
+
+      console.log(`✅ Retraining completed:`, retrainResult);
 
       // Update sample status
       sample.correctIntent = correctIntent;

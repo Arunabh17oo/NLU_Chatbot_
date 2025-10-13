@@ -181,6 +181,15 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
 
     try {
       const token = localStorage.getItem('token');
+      const workspaceId = typeof selectedWorkspace === 'string' ? selectedWorkspace : selectedWorkspace.id;
+      
+      console.log('Retraining with:', {
+        sampleId: retrainingSample._id,
+        correctIntent,
+        workspaceId,
+        selectedWorkspace
+      });
+
       const response = await fetch(`http://localhost:3001/api/active-learning/${retrainingSample._id}/retrain`, {
         method: 'POST',
         headers: {
@@ -189,7 +198,7 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
         },
         body: JSON.stringify({
           correctIntent: correctIntent,
-          workspaceId: selectedWorkspace
+          workspaceId: workspaceId
         })
       });
 
@@ -202,11 +211,12 @@ const ActiveLearningDashboard = ({ onBack, user }) => {
         setSuggestions([]);
       } else {
         const errorData = await response.json();
-        alert(`Retraining failed: ${errorData.message}`);
+        console.error('Retraining API error:', errorData);
+        alert(`Retraining failed: ${errorData.message || errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error retraining model:', error);
-      alert('Failed to retrain model. Please try again.');
+      alert(`Failed to retrain model: ${error.message || 'Please try again.'}`);
     }
   };
 

@@ -70,10 +70,35 @@ class HuggingFaceService {
    */
   async predictIntent(text, workspaceId, userId = null) {
     try {
-      const modelInfo = this.trainedModels.get(workspaceId);
+      let modelInfo = this.trainedModels.get(workspaceId);
       
       if (!modelInfo) {
-        throw new Error(`No trained model found for workspace: ${workspaceId}`);
+        // Try to load model from database
+        console.log(`🔄 Loading model from database for workspace: ${workspaceId}`);
+        const { Dataset } = await import('../models/Dataset.js');
+        
+        const dataset = await Dataset.findOne({ 
+          workspaceId: workspaceId, 
+          isActive: true 
+        }).sort({ createdAt: -1 });
+
+        if (!dataset) {
+          throw new Error(`No trained model found for workspace: ${workspaceId}`);
+        }
+
+        // Create model info from database data
+        modelInfo = {
+          id: `intent-classifier-${workspaceId}-${dataset._id}`,
+          workspaceId,
+          trainingData: dataset.data,
+          intents: dataset.uniqueIntents,
+          createdAt: dataset.createdAt,
+          status: 'trained'
+        };
+
+        // Cache the model info
+        this.trainedModels.set(workspaceId, modelInfo);
+        console.log(`✅ Model loaded from database and cached`);
       }
 
       console.log(`🔍 Predicting intent for: "${text}"`);
@@ -186,14 +211,27 @@ class HuggingFaceService {
   classifyText(text, trainingData) {
     const textLower = text.toLowerCase();
     
+    console.log(`🔍 Classifying text: "${text}"`);
+    console.log(`📊 Training data length: ${trainingData.length}`);
+    console.log(`📋 Sample training data:`, trainingData.slice(0, 3));
+    
     // Group training data by intent
     const intentGroups = {};
     trainingData.forEach(item => {
-      if (!intentGroups[item.label]) {
-        intentGroups[item.label] = [];
+      // Handle both 'label' and 'intent' properties for backward compatibility
+      const intent = item.intent || item.label;
+      if (!intent) {
+        console.log(`⚠️ Skipping item without intent/label:`, item);
+        return; // Skip items without intent/label
       }
-      intentGroups[item.label].push(item.text.toLowerCase());
+      
+      if (!intentGroups[intent]) {
+        intentGroups[intent] = [];
+      }
+      intentGroups[intent].push(item.text.toLowerCase());
     });
+    
+    console.log(`🎯 Intent groups:`, Object.keys(intentGroups));
 
     // Calculate similarity scores for each intent
     const scores = {};
@@ -213,11 +251,16 @@ class HuggingFaceService {
     const sortedScores = Object.entries(scores)
       .sort(([,a], [,b]) => b - a);
 
-    const [predictedIntent, confidence] = sortedScores[0];
+    console.log(`📈 Similarity scores:`, scores);
+    console.log(`🏆 Sorted scores:`, sortedScores);
+
+    const [predictedIntent, confidence] = sortedScores[0] || ['unknown', 0];
     const alternatives = sortedScores.slice(1, 4).map(([intent, score]) => ({
       intent,
       confidence: score
     }));
+
+    console.log(`✅ Final prediction: "${predictedIntent}" with confidence ${(confidence * 100).toFixed(1)}%`);
 
     return {
       intent: predictedIntent,
@@ -268,54 +311,98 @@ class HuggingFaceService {
    */
   async retrainModelWithCorrectIntent(text, correctIntent, workspaceId) {
     try {
-      const modelInfo = this.trainedModels.get(workspaceId);
-      
-      if (!modelInfo) {
-        throw new Error(`No trained model found for workspace: ${workspaceId}`);
-      }
-
       console.log(`🔄 Retraining model for: "${text}" with correct intent: "${correctIntent}"`);
 
-      // Add the correct example to training data
-      const newExample = {
-        text: text,
-        intent: correctIntent
-      };
+      // Import Dataset model dynamically to avoid circular dependencies
+      const { Dataset } = await import('../models/Dataset.js');
 
-      // Update the training data
-      if (!modelInfo.trainingData) {
-        modelInfo.trainingData = [];
+      // Find the most recent dataset for this workspace
+      const dataset = await Dataset.findOne({ 
+        workspaceId: workspaceId, 
+        isActive: true 
+      }).sort({ createdAt: -1 });
+
+      if (!dataset) {
+        throw new Error(`No training dataset found for workspace: ${workspaceId}`);
       }
 
+      console.log(`📊 Found dataset with ${dataset.data.length} existing examples`);
+
       // Check if this exact text-intent combination already exists
-      const existingIndex = modelInfo.trainingData.findIndex(
+      const existingIndex = dataset.data.findIndex(
         item => item.text === text && item.intent === correctIntent
       );
 
       if (existingIndex === -1) {
-        // Add new example
-        modelInfo.trainingData.push(newExample);
+        // Add new example to the dataset
+        dataset.data.push({
+          text: text,
+          intent: correctIntent,
+          confidence: 1.0,
+          isAnnotated: true,
+          annotatedAt: new Date()
+        });
+
+        // Update dataset statistics
+        dataset.totalSamples = dataset.data.length;
+        
+        // Update unique intents
+        const uniqueIntents = [...new Set(dataset.data.map(item => item.intent))];
+        dataset.uniqueIntents = uniqueIntents;
+
+        // Update intent counts
+        const intentCounts = {};
+        dataset.data.forEach(item => {
+          intentCounts[item.intent] = (intentCounts[item.intent] || 0) + 1;
+        });
+        dataset.intentCounts = intentCounts;
+
+        // Update last modified
+        dataset.lastModified = new Date();
+
+        // Save the updated dataset
+        await dataset.save();
+
         console.log(`✅ Added new training example: "${text}" -> "${correctIntent}"`);
+        console.log(`📊 Total training examples: ${dataset.data.length}`);
+        console.log(`🎯 Unique intents: ${dataset.uniqueIntents.length}`);
       } else {
         console.log(`ℹ️ Training example already exists: "${text}" -> "${correctIntent}"`);
       }
 
-      // Update the model info
-      modelInfo.lastRetrained = new Date();
-      modelInfo.retrainCount = (modelInfo.retrainCount || 0) + 1;
-
-      // Save updated model info
-      this.trainedModels.set(workspaceId, modelInfo);
+      // Update in-memory model cache if it exists
+      let modelInfo = this.trainedModels.get(workspaceId);
+      if (modelInfo) {
+        modelInfo.trainingData = dataset.data;
+        modelInfo.intents = dataset.uniqueIntents;
+        modelInfo.lastRetrained = new Date();
+        modelInfo.retrainCount = (modelInfo.retrainCount || 0) + 1;
+        this.trainedModels.set(workspaceId, modelInfo);
+      } else {
+        // Create a new model info entry for the cache
+        modelInfo = {
+          id: `intent-classifier-${workspaceId}-${Date.now()}`,
+          workspaceId,
+          trainingData: dataset.data,
+          intents: dataset.uniqueIntents,
+          createdAt: dataset.createdAt,
+          lastRetrained: new Date(),
+          retrainCount: 1,
+          status: 'trained'
+        };
+        this.trainedModels.set(workspaceId, modelInfo);
+      }
 
       console.log(`🎯 Model retrained successfully for workspace: ${workspaceId}`);
-      console.log(`📊 Total training examples: ${modelInfo.trainingData.length}`);
+      console.log(`📊 Total training examples: ${dataset.data.length}`);
 
       return {
         success: true,
         text: text,
         correctIntent: correctIntent,
-        totalExamples: modelInfo.trainingData.length,
-        retrainedAt: modelInfo.lastRetrained
+        totalExamples: dataset.data.length,
+        uniqueIntents: dataset.uniqueIntents.length,
+        retrainedAt: new Date()
       };
 
     } catch (error) {

@@ -58,6 +58,7 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
   const [selectedWorkspace, setSelectedWorkspace] = useState(null)
 
   const [file, setFile] = useState(null)
+  const [fileData, setFileData] = useState(null) // Store file data for session persistence
   const [data, setData] = useState([])
   const [isTraining, setIsTraining] = useState(false)
   const [trainingStatus, setTrainingStatus] = useState('')
@@ -70,6 +71,7 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
   const [suggested, setSuggested] = useState([])
   const [predictionResult, setPredictionResult] = useState(null)
   const [isPredicting, setIsPredicting] = useState(false)
+  const [sessionRestored, setSessionRestored] = useState(false)
 
   // Dashboard tabs
   const [activeTab, setActiveTab] = useState('training')
@@ -84,7 +86,94 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
     
     // Load user's workspaces on component mount
     loadWorkspaces()
+    
+    // Load session data
+    loadSessionData()
   }, [])
+
+  // Load session data on component mount
+  const loadSessionData = () => {
+    try {
+      const sessionData = sessionStorage.getItem('workspace-session')
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData)
+        
+        // Restore training data
+        if (parsed.data) {
+          setData(parsed.data)
+        }
+        
+        // Restore file data
+        if (parsed.fileData) {
+          setFileData(parsed.fileData)
+          // Recreate file object from stored data
+          const file = new File([parsed.fileData.content], parsed.fileData.name, { type: parsed.fileData.type })
+          setFile(file)
+        }
+        
+        // Restore model info
+        if (parsed.modelInfo) {
+          setModelInfo(parsed.modelInfo)
+        }
+        
+        // Restore training status
+        if (parsed.trainingStatus) {
+          setTrainingStatus(parsed.trainingStatus)
+        }
+        
+        // Restore prediction state
+        if (parsed.utterance) {
+          setUtterance(parsed.utterance)
+        }
+        
+        if (parsed.predictionResult) {
+          setPredictionResult(parsed.predictionResult)
+        }
+        
+        // Restore workspace selection
+        if (parsed.selectedWorkspace) {
+          setSelectedWorkspace(parsed.selectedWorkspace)
+        }
+        
+        // Restore active tab
+        if (parsed.activeTab) {
+          setActiveTab(parsed.activeTab)
+        }
+        
+        console.log('Session data restored successfully')
+        setSessionRestored(true)
+        // Hide notification after 3 seconds
+        setTimeout(() => setSessionRestored(false), 3000)
+      }
+    } catch (error) {
+      console.error('Error loading session data:', error)
+    }
+  }
+
+  // Save session data whenever relevant state changes
+  const saveSessionData = () => {
+    try {
+      const sessionData = {
+        data,
+        fileData,
+        modelInfo,
+        trainingStatus,
+        utterance,
+        predictionResult,
+        selectedWorkspace,
+        activeTab,
+        timestamp: Date.now()
+      }
+      sessionStorage.setItem('workspace-session', JSON.stringify(sessionData))
+    } catch (error) {
+      console.error('Error saving session data:', error)
+    }
+  }
+
+  // Save session data whenever relevant state changes
+  useEffect(() => {
+    saveSessionData()
+  }, [data, fileData, modelInfo, trainingStatus, utterance, predictionResult, selectedWorkspace, activeTab])
 
   const loadWorkspaces = async () => {
     try {
@@ -223,6 +312,14 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
           parsed = parseCsv(text)
         }
         setData(parsed)
+        
+        // Store file data for session persistence
+        setFileData({
+          name: f.name,
+          type: f.type,
+          content: text
+        })
+        
         alert('Dataset uploaded')
       } catch (e) {
         console.error(e)
@@ -381,12 +478,59 @@ export default function Workspace({ goToLogin, user, onPageChange }) {
     setTrainingStatus('')
   }
 
+  // Clear session data on logout
+  const handleLogout = () => {
+    sessionStorage.removeItem('workspace-session')
+    goToLogin()
+  }
+
+  // Clear session data manually
+  const clearSessionData = () => {
+    if (window.confirm('Clear all session data? This will remove uploaded files, training data, and predictions from this session.')) {
+      sessionStorage.removeItem('workspace-session')
+      setFile(null)
+      setFileData(null)
+      setData([])
+      setModelInfo(null)
+      setTrainingStatus('')
+      setUtterance('')
+      setPredictionResult(null)
+      setSelectedWorkspace(null)
+      setActiveTab('training')
+      alert('Session data cleared successfully!')
+    }
+  }
+
   return (
     <div className="ws-root">
+      {sessionRestored && (
+        <div style={{
+          position: 'fixed',
+          top: '10px',
+          right: '10px',
+          background: '#28a745',
+          color: 'white',
+          padding: '10px 15px',
+          borderRadius: '5px',
+          zIndex: 1000,
+          fontSize: '14px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+        }}>
+          ✅ Session data restored successfully!
+        </div>
+      )}
       <div className="ws-top">
         <div className="ws-brand">Project Workspace</div>
         <div className="ws-spacer" />
-        <button className="ws-logout" onClick={goToLogin}>Log out</button>
+        <button 
+          className="ws-button" 
+          onClick={clearSessionData}
+          style={{ marginRight: '10px', fontSize: '12px', padding: '5px 10px' }}
+          title="Clear all session data (files, training data, predictions)"
+        >
+          Clear Session
+        </button>
+        <button className="ws-logout" onClick={handleLogout}>Log out</button>
       </div>
 
       <div className="ws-columns">

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import './Workspace.css'
+import './workspace.css'
 import { FiPlus, FiFolder, FiUpload, FiCpu, FiCheck, FiBarChart2, FiGitBranch, FiMessageCircle, FiZap, FiSettings } from 'react-icons/fi'
 import EvaluationDashboard from './EvaluationDashboard'
 import ModelVersioningDashboard from './ModelVersioningDashboard'
